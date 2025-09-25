@@ -184,6 +184,8 @@ The T-Deck firmware is free to download and most features are available without 
 
 Use the smartphone client or the repeater setup feature on there web flasher to set your radios' RF settings by choosing the preset for your regions.
 
+In UK and EU, 867.5MHz is not allowed to use 250kHz bandwidth and it only allows 2.5% duty cycle for clients.  869.525Mhz allows an airtime of 10%, 250KHz bandwidth, and a higher Effective Isotropic Radiated Power (EIRP), therefore MeshCore nodes can send more often and with more power. That is why this frequency is chosen for UK and EU.  This is also why Meshtastic also uses this frequency.  
+
 Recently, as of October 2025, many regions have moved to the "narrow" setting, aka using BW62.5 and a lower SF number (instead of the original SF11).  For example, USA/Canada (Recommended) preset is 910.525MHz, SF7, BW62.5, CR5.
 
 After extensive testing, many regions have switched or about to switch over to BW62.5 and SF7, 8, or 9.  Narrower bandwidth setting and lower SF setting allow MeshCore's radio signals to fit between interference in the ISM band, provide for a lower noise floor, better SNR, and faster transmissions.
