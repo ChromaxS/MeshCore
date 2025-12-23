@@ -259,4 +259,7 @@ public:
     return bridge.getQueueSize();
   }
 #endif
+
+  // To get the current pending work
+  int hasPendingWork() const;
 };
