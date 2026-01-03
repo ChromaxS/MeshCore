@@ -51,6 +51,8 @@
 
 #define RESP_SERVER_LOGIN_OK        0 // response to ANON_REQ
 
+#define ANON_REQ_TYPE_REGIONS      0x01
+
 #define CLI_REPLY_DELAY_MILLIS      600
 
 #define LAZY_CONTACTS_WRITE_DELAY    5000
@@ -140,6 +142,7 @@ uint8_t MyMesh::handleLoginReq(const mesh::Identity& sender, const uint8_t* secr
 }
 
 uint8_t MyMesh::handleAnonRegionsReq(const mesh::Identity& sender, uint32_t sender_timestamp, const uint8_t* data) {
+<<<<<<< HEAD
   if (regions_limiter.allow(rtc_clock.getCurrentTime())) {
     // request data has: {reply-path-len}{reply-path}
     reply_path_len = *data++ & 0x3F;
@@ -147,6 +150,10 @@ uint8_t MyMesh::handleAnonRegionsReq(const mesh::Identity& sender, uint32_t send
     // data += reply_path_len;
     // other params??
 
+=======
+  // REVISIT: should there be params like 'since' in request data[] ?
+  if (regions_limiter.allow(rtc_clock.getCurrentTime())) {
+>>>>>>> 3af25495 (* Repeater: new anon request sub-type: ANON_REQ_TYPE_REGIONS  (rate limited to max 4 every 3 mins))
     memcpy(reply_data, &sender_timestamp, 4);   // prefix with sender_timestamp, like a tag
 
     uint32_t now = getRTCClock()->getCurrentTime();
@@ -476,9 +483,13 @@ void MyMesh::onAnonDataRecv(mesh::Packet *packet, const uint8_t *secret, const m
     reply_path_len = -1;
     if (data[4] == 0 || data[4] >= ' ') {   // is password, ie. a login request
       reply_len = handleLoginReq(sender, secret, timestamp, &data[4], packet->isRouteFlood());
+<<<<<<< HEAD
     //} else if (data[4] == ANON_REQ_TYPE_*) {   // future type codes
       // TODO
     } else if (data[4] == ANON_REQ_TYPE_REGIONS && packet->isRouteDirect()) {
+=======
+    } else if (data[4] == ANON_REQ_TYPE_REGIONS) {
+>>>>>>> 3af25495 (* Repeater: new anon request sub-type: ANON_REQ_TYPE_REGIONS  (rate limited to max 4 every 3 mins))
       reply_len = handleAnonRegionsReq(sender, timestamp, &data[5]);
     } else {
       reply_len = 0;  // unknown/invalid request type
@@ -699,7 +710,8 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
                mesh::RTCClock &rtc, mesh::MeshTables &tables)
     : mesh::Mesh(radio, ms, rng, rtc, *new StaticPoolPacketManager(32), tables),
       _cli(board, rtc, sensors, &_prefs, this), telemetry(MAX_PACKET_PAYLOAD - 4), region_map(key_store), temp_map(key_store),
-      discover_limiter(4, 120)  // max 4 every 2 minutes
+      discover_limiter(4, 120),  // max 4 every 2 minutes
+      regions_limiter(4, 180)   // max 4 every 3 minutes
 #if defined(WITH_RS232_BRIDGE)
       , bridge(&_prefs, WITH_RS232_BRIDGE, _mgr, &rtc)
 #elif defined(WITH_ESPNOW_BRIDGE)
