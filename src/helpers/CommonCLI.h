@@ -51,7 +51,7 @@ struct NodePrefs { // persisted to file
   // Power setting
   uint32_t discovery_mod_timestamp;  // From upstream dev branch
   float adc_multiplier;  // From upstream dev branch
-  uint8_t powersaving_enabled; // boolean
+  char owner_info[120];
   // MQTT settings (stored separately in /mqtt_prefs, but kept here for backward compatibility)
   char mqtt_origin[32];     // Device name for MQTT topics
   char mqtt_iata[8];        // IATA code for MQTT topics

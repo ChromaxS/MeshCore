@@ -52,6 +52,7 @@
 #define RESP_SERVER_LOGIN_OK        0 // response to ANON_REQ
 
 #define ANON_REQ_TYPE_REGIONS      0x01
+#define ANON_REQ_TYPE_VER_OWNER    0x02
 
 #define CLI_REPLY_DELAY_MILLIS      600
 
@@ -142,24 +143,38 @@ uint8_t MyMesh::handleLoginReq(const mesh::Identity& sender, const uint8_t* secr
 }
 
 uint8_t MyMesh::handleAnonRegionsReq(const mesh::Identity& sender, uint32_t sender_timestamp, const uint8_t* data) {
-<<<<<<< HEAD
-  if (regions_limiter.allow(rtc_clock.getCurrentTime())) {
+  if (anon_limiter.allow(rtc_clock.getCurrentTime())) {
     // request data has: {reply-path-len}{reply-path}
     reply_path_len = *data++ & 0x3F;
     memcpy(reply_path, data, reply_path_len);
     // data += reply_path_len;
     // other params??
 
-=======
-  // REVISIT: should there be params like 'since' in request data[] ?
-  if (regions_limiter.allow(rtc_clock.getCurrentTime())) {
->>>>>>> 3af25495 (* Repeater: new anon request sub-type: ANON_REQ_TYPE_REGIONS  (rate limited to max 4 every 3 mins))
+    memcpy(reply_data, &sender_timestamp, 4);   // prefix with sender_timestamp, like a tag
+    uint32_t now = getRTCClock()->getCurrentTime();
+    memcpy(&reply_data[4], &now, 4);     // include our clock (for easy clock sync, if this is a trusted node)
+
+    return 8 + region_map.exportNamesTo((char *) &reply_data[8], sizeof(reply_data) - 12, REGION_DENY_FLOOD);   // reply length
+  }
+  return 0;
+}
+
+uint8_t MyMesh::handleAnonVerOwnerReq(const mesh::Identity& sender, uint32_t sender_timestamp, const uint8_t* data) {
+  if (anon_limiter.allow(rtc_clock.getCurrentTime())) {
+    // request data has: {reply-path-len}{reply-path}
+    reply_path_len = *data++ & 0x3F;
+    memcpy(reply_path, data, reply_path_len);
+    // data += reply_path_len;
+    // other params??
+
     memcpy(reply_data, &sender_timestamp, 4);   // prefix with sender_timestamp, like a tag
 
     uint32_t now = getRTCClock()->getCurrentTime();
     memcpy(&reply_data[4], &now, 4);     // include our clock (for easy clock sync, if this is a trusted node)
 
-    return 8 + region_map.exportNamesTo((char *) &reply_data[8], sizeof(reply_data) - 12, REGION_DENY_FLOOD);   // reply length
+    sprintf((char *) &reply_data[8], "%s,%s", FIRMWARE_VERSION, _prefs.owner_info);
+
+    return 8 + strlen((char *) &reply_data[8]);   // reply length
   }
   return 0;
 }
@@ -483,14 +498,12 @@ void MyMesh::onAnonDataRecv(mesh::Packet *packet, const uint8_t *secret, const m
     reply_path_len = -1;
     if (data[4] == 0 || data[4] >= ' ') {   // is password, ie. a login request
       reply_len = handleLoginReq(sender, secret, timestamp, &data[4], packet->isRouteFlood());
-<<<<<<< HEAD
     //} else if (data[4] == ANON_REQ_TYPE_*) {   // future type codes
       // TODO
     } else if (data[4] == ANON_REQ_TYPE_REGIONS && packet->isRouteDirect()) {
-=======
-    } else if (data[4] == ANON_REQ_TYPE_REGIONS) {
->>>>>>> 3af25495 (* Repeater: new anon request sub-type: ANON_REQ_TYPE_REGIONS  (rate limited to max 4 every 3 mins))
       reply_len = handleAnonRegionsReq(sender, timestamp, &data[5]);
+    } else if (data[4] == ANON_REQ_TYPE_VER_OWNER && packet->isRouteDirect()) {
+      reply_len = handleAnonVerOwnerReq(sender, timestamp, &data[5]);
     } else {
       reply_len = 0;  // unknown/invalid request type
     }
@@ -711,7 +724,7 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
     : mesh::Mesh(radio, ms, rng, rtc, *new StaticPoolPacketManager(32), tables),
       _cli(board, rtc, sensors, &_prefs, this), telemetry(MAX_PACKET_PAYLOAD - 4), region_map(key_store), temp_map(key_store),
       discover_limiter(4, 120),  // max 4 every 2 minutes
-      regions_limiter(4, 180)   // max 4 every 3 minutes
+      anon_limiter(4, 180)   // max 4 every 3 minutes
 #if defined(WITH_RS232_BRIDGE)
       , bridge(&_prefs, WITH_RS232_BRIDGE, _mgr, &rtc)
 #elif defined(WITH_ESPNOW_BRIDGE)
