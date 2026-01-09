@@ -56,6 +56,14 @@ static bool isValidPublicKeyHex(const char* key_hex) {
   return true;
 }
 
+static bool isValidName(const char *n) {
+  while (*n) {
+    if (*n == '[' || *n == ']' || *n == '/' || *n == '\\' || *n == ':' || *n == ',' || *n == '?' || *n == '*') return false;
+    n++;
+  }
+  return true;
+}
+
 void CommonCLI::loadPrefs(FILESYSTEM* fs) {
   if (fs->exists("/com_prefs")) {
     loadPrefsInt(fs, "/com_prefs");   // new filename
@@ -779,9 +787,13 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
           strcpy(reply, "Error, bad key");
         }
       } else if (memcmp(config, "name ", 5) == 0) {
-        StrHelper::strncpy(_prefs->node_name, &config[5], sizeof(_prefs->node_name));
-        savePrefs();
-        strcpy(reply, "OK");
+        if (isValidName(&config[5])) {
+          StrHelper::strncpy(_prefs->node_name, &config[5], sizeof(_prefs->node_name));
+          savePrefs();
+          strcpy(reply, "OK");
+        } else {
+          strcpy(reply, "Error, bad chars");
+        }
       } else if (memcmp(config, "repeat ", 7) == 0) {
         _prefs->disable_fwd = memcmp(&config[7], "off", 3) == 0;
         savePrefs();
