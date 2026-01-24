@@ -820,7 +820,7 @@ void MyMesh::begin(FILESYSTEM *fs) {
   StrHelper::strncpy(_prefs.mqtt_origin, _prefs.node_name, sizeof(_prefs.mqtt_origin));
   MESH_DEBUG_PRINTLN("MQTT origin set to device name: %s", _prefs.mqtt_origin);
 
-  acl.load(_fs);
+  acl.load(_fs, self_id);
   // TODO: key_store.begin();
   region_map.load(_fs);
 
