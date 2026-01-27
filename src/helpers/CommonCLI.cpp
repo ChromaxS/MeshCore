@@ -58,7 +58,7 @@ static bool isValidPublicKeyHex(const char* key_hex) {
 
 static bool isValidName(const char *n) {
   while (*n) {
-    if (*n == '[' || *n == ']' || *n == '/' || *n == '\\' || *n == ':' || *n == ',' || *n == '?' || *n == '*') return false;
+    if (*n == '[' || *n == ']' || *n == '\\' || *n == ':' || *n == ',' || *n == '?' || *n == '*') return false;
     n++;
   }
   return true;
