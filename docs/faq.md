@@ -251,6 +251,34 @@ You can get the latitude and longitude from Google Maps by right-clicking the lo
 
 `set guest.password {guest-password}`
 
+### 3.5. Q: Can I retrieve a repeater's private key or set a repeater's private key?
+
+**A:** You can issue these commands to get or set a repeater's private key using a USB serial connection.
+
+`get prv.key` to print a repeater's private key on the serial console
+`set prv.key <hex>` to set a repeater's private key on the serial console
+
+Reboot the repeater after `set prv.key <hex>` command for the new private key to take effect.
+
+### 3.6. Q: The first byte of my repeater's public key collides with an exisitng repeater on the mesh.  How do I get a new private key with a matching public key that has its first byte of my choosing?
+
+**A:** You can generate a new private key and specific the first byte of its public key here:  https://gessaman.com/mc-keygen/
+
+
+### 3.7. Q: My repeater maybe suffering from deafness due to high power interference near my mesh's frequency, it is not hearing other in-range MeshCore radios.  what can I do?
+
+**A:** This may be due to the SX1262 radio's auto gain control feature.  You can use this command to preiodically reset its AGC.  
+
+`set agc.reset.interval <number>`
+
+The `<number>` unit is in seconds and is incremented by 4.  `set agc.reset.interval 4` works well to cure deafness.  
+
+This is a very low cost operation.  AGC reset is done by simply setting `state = STATE_IDLE;` in function `RadioLibWrapper::resetAGC()` in `RadioLibWrappers.cpp`
+
+
+### 3.8 Q: How do I make my repeater an observer on the mesh
+
+**A:** The observer instruction is available here: https://analyzer.letsmesh.net/observer/onboard
 
 ---
 
@@ -565,7 +593,7 @@ From here, reference repeater and room server command line commands on MeshCore 
 **A:** Yes.  See the following:
 
 #### 5.14.1. meshcoremqtt
-A Python script to send meshcore debug and packet capture data to MQTT for analysis.  Cisien's version is a fork of Andrew-a-g's and is being used to to collect data for https://map.w0z.is/messages and https://analyzer.letsme.sh/
+A Python script to send meshcore debug and packet capture data to MQTT for analysis.  Cisien's version is a fork of Andrew-a-g's and is being used to to collect data for https://map.w0z.is/messages and https://analyzer.letsmesh.net/
 https://github.com/Cisien/meshcoretomqtt
 https://github.com/Andrew-a-g/meshcoretomqtt
 
@@ -588,6 +616,36 @@ https://github.com/liamcottle/meshcore.js
 #### 5.14.6. pyMC_core
 pyMC_Core is a Python port of MeshCore, designed for Raspberry Pi and similar hardware, it talks to LoRa modules over SPI.
 https://github.com/rightup/pyMC_core
+
+#### 5.14.7. MeshCore Packet Decoder
+A TypeScript library for decoding MeshCore mesh networking packets with full cryptographic support. Uses WebAssembly (WASM) for Ed25519 key derivation through the orlp/ed25519 library.  It powers the [MeshCore Packet Analyzer](https://analyzer.letsmesh.net/packets).
+https://github.com/michaelhart/meshcore-decoder
+
+#### 5.14.8. meshcore-pi
+meshcore-pi is another Python port of MeshCore, designed for Raspberry Pi and similar hardware, it talks to LoRa modules over SPI or GPIO.
+https://github.com/brianwiddas/meshcore-pi
+
+#### 5.14.9. pyMC_Repeater
+pyMC_Repeater is a repeater daemon in Python built on top of the [`pymc_core`](#5146-pymc_core) library.
+https://github.com/rightup/pyMC_Repeater
+
+
+### 5.15. Q: Are there client applications for Windows or Mac?
+**A:** Yes, the same iOS and Android client is also available for Windows and Intel Mac (sorry, not available for ARM-based Mac yet).  You can find them together with the Android APK here:
+https://files.liamcottle.net/MeshCore
+
+Both the Windows and Intel Mac versions of the client app are fully unlocked and are free to use.
+
+### 5.16. Q: Are there any resources that compare MeshCore to other LoRa systems?
+
+**A:** Here is a list of MeshCore comparison resources:
+The Comms Channel on YouTube:
+https://www.youtube.com/watch?v=guDoKGs02Us
+MeshCore Advantages by MCarper:
+https://github.com/mikecarper/meshfirmware/blob/main/MeshCoreAdvantages.md
+Meshcore vs Meshtastic by austinmesh.org
+https://www.austinmesh.org/learn/meshcore-vs-meshtastic/
+
 
 ---
 
