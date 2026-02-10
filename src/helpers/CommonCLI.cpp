@@ -163,12 +163,12 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     file.read((uint8_t *)&_prefs->tx_power_dbm, sizeof(_prefs->tx_power_dbm));        // 76
     file.read((uint8_t *)&_prefs->disable_fwd, sizeof(_prefs->disable_fwd));          // 77
     file.read((uint8_t *)&_prefs->advert_interval, sizeof(_prefs->advert_interval));  // 78
-    file.read((uint8_t *)pad, 1);                                                     // 79  was 'unused'
+    file.read((uint8_t *)pad, 1); // 79 : 1 byte unused
     file.read((uint8_t *)&_prefs->rx_delay_base, sizeof(_prefs->rx_delay_base));      // 80
     file.read((uint8_t *)&_prefs->tx_delay_factor, sizeof(_prefs->tx_delay_factor));  // 84
     file.read((uint8_t *)&_prefs->guest_password[0], sizeof(_prefs->guest_password)); // 88
     file.read((uint8_t *)&_prefs->direct_tx_delay_factor, sizeof(_prefs->direct_tx_delay_factor)); // 104
-    file.read(pad, 4);                                                                             // 108
+    file.read(pad, 4); // 108 : 4 bytes unused
     file.read((uint8_t *)&_prefs->sf, sizeof(_prefs->sf));                                         // 112
     file.read((uint8_t *)&_prefs->cr, sizeof(_prefs->cr));                                         // 113
     file.read((uint8_t *)&_prefs->allow_read_only, sizeof(_prefs->allow_read_only));               // 114
@@ -176,6 +176,7 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     file.read((uint8_t *)&_prefs->bw, sizeof(_prefs->bw));                                         // 116
     file.read((uint8_t *)&_prefs->agc_reset_interval, sizeof(_prefs->agc_reset_interval));         // 120
     file.read((uint8_t *)&_prefs->path_hash_mode, sizeof(_prefs->path_hash_mode));                 // 121
+    //file.read((uint8_t *)&_prefs->sx126x_rx_boosted_gain, sizeof(_prefs->sx126x_rx_boosted_gain)); // 121 BUG
     file.read((uint8_t *)&_prefs->loop_detect, sizeof(_prefs->loop_detect));                       // 122
     file.read(pad, 1);                                                                             // 123
     file.read((uint8_t *)&_prefs->flood_max, sizeof(_prefs->flood_max));                           // 124
@@ -192,9 +193,9 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     file.read((uint8_t *)&_prefs->gps_interval, sizeof(_prefs->gps_interval));                     // 157
     file.read((uint8_t *)&_prefs->advert_loc_policy, sizeof (_prefs->advert_loc_policy));          // 161
     file.read((uint8_t *)&_prefs->discovery_mod_timestamp, sizeof(_prefs->discovery_mod_timestamp)); // 162
-    file.read((uint8_t *)&_prefs->adc_multiplier, sizeof(_prefs->adc_multiplier)); // 166
-    file.read((uint8_t *)_prefs->owner_info, sizeof(_prefs->owner_info));  // 170
-    // 290
+    file.read((uint8_t *)&_prefs->adc_multiplier, sizeof(_prefs->adc_multiplier));                 // 166
+    file.read((uint8_t *)_prefs->owner_info, sizeof(_prefs->owner_info));                          // 170
+    // next: 290
 
     file.close();
   }
@@ -521,6 +522,10 @@ void CommonCLI::sanitizePrefs() {
 
     _prefs->gps_enabled = constrain(_prefs->gps_enabled, 0, 1);
     _prefs->advert_loc_policy = constrain(_prefs->advert_loc_policy, 0, 2);
+
+    // sanitise power settings
+    _prefs->sx126x_rx_boosted_gain = constrain(_prefs->sx126x_rx_boosted_gain, 0, 1); // boolean
+  }
 }
 
 void CommonCLI::savePrefs(FILESYSTEM* fs) {
@@ -591,6 +596,7 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
   JsonObject radio = config_doc.createNestedObject("radio");
   radio["freq"] = _prefs->freq;
   radio["tx_power_dbm"] = _prefs->tx_power_dbm;
+  radio["rx_boosted_gain"] = _prefs->sx126x_rx_boosted_gain;
   radio["rx_delay_base"] = _prefs->rx_delay_base;
   radio["spread_factor"] = _prefs->sf;
   radio["coding_rate"] = _prefs->cr;
@@ -1004,7 +1010,7 @@ handleCommandHelpSections:
         if (strcmp(section, "admin") == 0) {
           strcpy(reply, "Possible: board, clkreboot, clock sync, erase,\n"
             "  guest.password, memory, password[.protected],\n"
-            "  powersaving, radio, reboot, start ota, tempradio, time, ver\n"
+            "  powersaving, [temp]radio[.lna], reboot, start ota, time, ver\n"
           );
         } else if (strcmp(section, "clear") == 0) {
           goto handleCommandHelpClear;
@@ -1183,6 +1189,10 @@ handleCommand_protected_cleared:
         strcpy(freq, StrHelper::ftoa(_prefs->freq));
         strcpy(bw, StrHelper::ftoa3(_prefs->bw));
         sprintf(reply, "> %s,%s,%d,%d", freq, bw, (uint32_t)_prefs->sf, (uint32_t)_prefs->cr);
+#if defined(USE_SX1262) || defined(USE_SX1268)
+      } else if (strcmp(config, "radio.lna") == 0) {
+        sprintf(reply, "> %s", _prefs->sx126x_rx_boosted_gain ? "on" : "off");
+#endif
       } else if (strcmp(config, "rxdelay") == 0) {
         sprintf(reply, "> %s", StrHelper::ftoa(_prefs->rx_delay_base));
       } else if (strcmp(config, "txdelay") == 0) {
@@ -1666,6 +1676,13 @@ handleCommandSilentCleared:
         _prefs->disable_fwd = memcmp(&config[7], "off", 3) == 0;
         savePrefs();
         strcpy(reply, _prefs->disable_fwd ? "OK - repeat is now OFF" : "OK - repeat is now ON");
+#if defined(USE_SX1262) || defined(USE_SX1268)
+      } else if (memcmp(config, "radio.lna ", 10) == 0) {
+        _prefs->sx126x_rx_boosted_gain = memcmp(&config[10], "on", 2) == 0;
+        strcpy(reply, "OK");
+        savePrefs();
+        _callbacks->setRxBoostedGain(_prefs->sx126x_rx_boosted_gain);
+#endif
       } else if (memcmp(config, "radio ", 6) == 0) {
         if (0 != sender_timestamp) goto handleCommandDenied;
         if (strcmp(&config[6], "au") == 0) {
