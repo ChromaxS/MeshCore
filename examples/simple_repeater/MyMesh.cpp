@@ -761,6 +761,16 @@ void MyMesh::onControlDataRecv(mesh::Packet* packet) {
       return;
     }
 
+    if (pending_discover_tag == 0 || millisHasNowPassed(pending_discover_until)) {
+      pending_discover_tag = 0;
+      return;
+    }
+    uint32_t tag;
+    memcpy(&tag, &packet->payload[2], 4);
+    if (tag != pending_discover_tag) {
+      return;
+    }
+
     mesh::Identity id(&packet->payload[6]);
     if (id.matches(self_id)) {
       return;
@@ -776,6 +786,8 @@ void MyMesh::sendNodeDiscoverReq() {
   data[0] = CTL_TYPE_NODE_DISCOVER_REQ; // prefix_only=0
   data[1] = (1 << ADV_TYPE_REPEATER);
   getRNG()->random(&data[2], 4); // tag
+  memcpy(&pending_discover_tag, &data[2], 4);
+  pending_discover_until = futureMillis(30000);
   uint32_t since = 0;
   memcpy(&data[6], &since, 4);
 
@@ -867,6 +879,11 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
         // Let's Mesh Analyzer defaults (both enabled by default)
         _prefs.mqtt_analyzer_us_enabled = 1; // enabled
         _prefs.mqtt_analyzer_eu_enabled = 1; // enabled
+
+  _prefs.adc_multiplier = 0.0f; // 0.0f means use default board multiplier
+
+  pending_discover_tag = 0;
+  pending_discover_until = 0;
 }
 
 void MyMesh::begin(FILESYSTEM *fs) {
@@ -1274,11 +1291,11 @@ void MyMesh::handleCommand(uint32_t sender_timestamp, char *command, char *reply
     } else {
       strcpy(reply, "Err - ??");
     }
-  } else if (memcmp(command, "discover", 8) == 0) {
-    const char* sub = command + 8;
+  } else if (memcmp(command, "discover.neighbors", 18) == 0) {
+    const char* sub = command + 18;
     while (*sub == ' ') sub++;
     if (*sub != 0) {
-      strcpy(reply, "Err - discover has no options");
+      strcpy(reply, "Err - discover.neighbors has no options");
     } else {
       sendNodeDiscoverReq();
       strcpy(reply, "OK - Discover sent");
