@@ -1169,6 +1169,51 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
                   strcpy(reply, "> (not set)");
                 }
 #endif
+      } else if (strcmp(config, "bootloader.ver") == 0) {
+#ifdef NRF52_PLATFORM
+          char ver[32];
+          if (_board->getBootloaderVersion(ver, sizeof(ver))) {
+              sprintf(reply, "> %s", ver);
+          } else {
+              strcpy(reply, "> unknown");
+          }
+#else
+          strcpy(reply, "ERROR: unsupported");
+#endif
+      } else if (strcmp(config, "adc.multiplier") == 0) {
+        float adc_mult = _board->getAdcMultiplier();
+        if (adc_mult == 0.0f) {
+          strcpy(reply, "Error: unsupported by this board");
+        } else {
+          sprintf(reply, "> %.3f", adc_mult);
+        }
+      // Power management commands
+      } else if (strcmp(config, "pwrmgt.support") == 0) {
+#ifdef NRF52_POWER_MANAGEMENT
+        strcpy(reply, "> supported");
+#else
+        strcpy(reply, "> unsupported");
+#endif
+      } else if (strcmp(config, "pwrmgt.source") == 0) {
+#ifdef NRF52_POWER_MANAGEMENT
+        strcpy(reply, _board->isExternalPowered() ? "> external" : "> battery");
+#else
+        strcpy(reply, "ERROR: Power management not supported");
+#endif
+      } else if (strcmp(config, "pwrmgt.bootreason") == 0) {
+#ifdef NRF52_POWER_MANAGEMENT
+        sprintf(reply, "> Reset: %s; Shutdown: %s",
+          _board->getResetReasonString(_board->getResetReason()),
+          _board->getShutdownReasonString(_board->getShutdownReason()));
+#else
+        strcpy(reply, "ERROR: Power management not supported");
+#endif
+      } else if (strcmp(config, "pwrmgt.bootmv") == 0) {
+#ifdef NRF52_POWER_MANAGEMENT
+        sprintf(reply, "> %u mV", _board->getBootVoltage());
+#else
+        strcpy(reply, "ERROR: Power management not supported");
+#endif
       } else {
         sprintf(reply, "??: %s", config);
       }
