@@ -76,5 +76,9 @@ void HeltecV4Board::begin() {
   }
 
   const char* HeltecV4Board::getManufacturerName() const {
-    return "Heltec V4";
+#ifdef HELTEC_LORA_V4_TFT
+    return loRaFEMControl.getFEMType() == KCT8103L_PA ? "Heltec V4.3 TFT" : "Heltec V4 TFT";
+#else
+    return loRaFEMControl.getFEMType() == KCT8103L_PA ? "Heltec V4.3 OLED" : "Heltec V4 OLED";
+#endif
   }
