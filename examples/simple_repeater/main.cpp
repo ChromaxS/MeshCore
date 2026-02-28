@@ -25,6 +25,11 @@ char g_serial_command_backspaces[2 + 160];
 unsigned long lastActive = 0; // mark last active time
 unsigned long nextSleepinSecs = 120; // next sleep in seconds. The first sleep (if enabled) is after 2 minutes from boot
 
+#if defined(PIN_USER_BTN) && defined(_SEEED_SENSECAP_SOLAR_H_)
+static unsigned long userBtnDownAt = 0;
+#define USER_BTN_HOLD_OFF_MILLIS 1500
+#endif
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -116,6 +121,21 @@ void setup() {
 void loop() {
   loop_telnet_server(the_mesh);
   loop_serial_console(the_mesh);
+
+#if defined(PIN_USER_BTN) && defined(_SEEED_SENSECAP_SOLAR_H_)
+  // Hold the user button to power off the SenseCAP Solar repeater.
+  int btnState = digitalRead(PIN_USER_BTN);
+  if (btnState == LOW) {
+    if (userBtnDownAt == 0) {
+      userBtnDownAt = millis();
+    } else if ((unsigned long)(millis() - userBtnDownAt) >= USER_BTN_HOLD_OFF_MILLIS) {
+      Serial.println("Powering off...");
+      board.powerOff();  // does not return
+    }
+  } else {
+    userBtnDownAt = 0;
+  }
+#endif
 
   the_mesh.loop();
   sensors.loop();
