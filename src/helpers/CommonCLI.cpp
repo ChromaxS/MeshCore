@@ -1759,6 +1759,9 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
       LocationProvider * l = _sensors->getLocationProvider();
       if (l != NULL) {
         l->syncTime();
+        strcpy(reply, "ok");
+      } else {
+        strcpy(reply, "gps provider not found");
       }
     } else if (memcmp(command, "gps setloc", 10) == 0) {
       if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
