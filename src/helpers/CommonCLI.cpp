@@ -1028,6 +1028,9 @@ handleCommandHelpSections:
         } else {
             goto handleCommandHelpSections;
         }
+    } else if (memcmp(command, "poweroff", 8) == 0 || memcmp(command, "shutdown", 8) == 0) {
+      if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+      _board->powerOff();  // doesn't return
     } else if (strcmp(command, "reboot") == 0) {
       if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
       _board->reboot();  // doesn't return
