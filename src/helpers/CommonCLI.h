@@ -68,8 +68,9 @@ struct NodePrefs { // persisted to file
   uint8_t wifi_power_save; // WiFi power save mode: 0=min, 1=none, 2=max (default: 0=min)
   
   // Timezone settings
-  char timezone_string[32]; // Timezone string (e.g., "America/Los_Angeles")
+  char timezone_ntp_server[32]; // Timezone NTP server (e.g. pool.ntp.org)
   int8_t timezone_offset;   // Timezone offset in hours (-12 to +14) - fallback
+  char timezone_string[32]; // Timezone string (e.g., "America/Los_Angeles")
   
   // MQTT server settings
   char mqtt_server[64];     // MQTT server hostname
@@ -107,8 +108,9 @@ struct MQTTPrefs {
   uint8_t wifi_power_save; // WiFi power save mode: 0=min, 1=none, 2=max (default: 0=min)
   
   // Timezone settings
-  char timezone_string[32]; // Timezone string (e.g., "America/Los_Angeles")
+  char timezone_ntp_server[32]; // Timezone NTP server (e.g. pool.ntp.org)
   int8_t timezone_offset;   // Timezone offset in hours (-12 to +14) - fallback
+  char timezone_string[32]; // Timezone string (e.g., "America/Los_Angeles")
   
   // MQTT server settings
   char mqtt_server[64];     // MQTT server hostname

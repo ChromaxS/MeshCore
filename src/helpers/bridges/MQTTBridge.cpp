@@ -49,7 +49,7 @@ MQTTBridge::MQTTBridge(NodePrefs *prefs, mesh::PacketManager *mgr, mesh::RTCCloc
     : BridgeBase(prefs, mgr, rtc), _mqtt_client(nullptr),
       _active_brokers(0), _queue_head(0), _queue_tail(0), _queue_count(0),
       _last_status_publish(0), _last_status_retry(0), _status_interval(300000), // 5 minutes default
-              _ntp_client(_ntp_udp, "pool.ntp.org", 0, 60000), _last_ntp_sync(0), _ntp_synced(false),
+              _ntp_client(_ntp_udp, prefs->timezone_ntp_server, 0, 60000), _last_ntp_sync(0), _ntp_synced(false),
               _timezone(nullptr), _last_raw_len(0), _last_snr(0), _last_rssi(0), _last_raw_timestamp(0),
               _analyzer_us_enabled(false), _analyzer_eu_enabled(false), _identity(identity),
               _analyzer_us_client(nullptr), _analyzer_eu_client(nullptr), _config_valid(false),
@@ -2033,14 +2033,18 @@ void MQTTBridge::syncTimeWithNTP() {
     MQTT_DEBUG_PRINTLN("Cannot sync time - WiFi not connected");
     return;
   }
+  if (!*_prefs->timezone_ntp_server) {
+      MQTT_DEBUG_PRINTLN("Cannot sync time - NTP not configured");
+      return;
+  }
   
   MQTT_DEBUG_PRINTLN("Syncing time with NTP...");
   
   // Test DNS resolution before attempting NTP sync
   #ifdef ESP_PLATFORM
   IPAddress resolved_ip;
-  if (!WiFi.hostByName("pool.ntp.org", resolved_ip)) {
-    MQTT_DEBUG_PRINTLN("WARNING: DNS resolution failed for pool.ntp.org - NTP sync may fail");
+  if (!WiFi.hostByName(_prefs->timezone_ntp_server, resolved_ip)) {
+    MQTT_DEBUG_PRINTLN("WARNING: DNS resolution failed for %s - NTP sync may fail", _prefs->timezone_ntp_server);
   }
   #endif
   
@@ -2053,7 +2057,7 @@ void MQTTBridge::syncTimeWithNTP() {
     
     // Set system timezone to UTC first
     // This ensures time() returns UTC time
-    configTime(0, 0, "pool.ntp.org");
+    configTime(0, 0, _prefs->timezone_ntp_server);
     
     // Update the device's RTC clock with UTC time (if available)
     if (_rtc) {

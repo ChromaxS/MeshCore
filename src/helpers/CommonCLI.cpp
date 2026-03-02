@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include "CommonCLI.h"
 #include "TxtDataHelpers.h"
 #include "AdvertDataHelpers.h"
@@ -7,8 +8,6 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
 #endif
-#ifdef WITH_MQTT_BRIDGE
-#include "bridges/MQTTBridge.h"
 
 // Helper function to calculate total size of MQTT fields for file format compatibility
 // Uses NodePrefs struct to get accurate field sizes
@@ -24,6 +23,10 @@ static size_t getMQTTFieldsSize(const NodePrefs* prefs) {
          sizeof(prefs->mqtt_analyzer_eu_enabled) + sizeof(prefs->mqtt_owner_public_key) +
          sizeof(prefs->mqtt_email);
 }
+
+#ifdef WITH_MQTT_BRIDGE
+#include "bridges/MQTTBridge.h"
+
 #endif
 
 // Believe it or not, this std C function is busted on some platforms!
@@ -133,6 +136,7 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     file.read((uint8_t *)_prefs->owner_info, sizeof(_prefs->owner_info));  // 170
     // 290
 
+    /*
     // MQTT settings - skip reading from main prefs file (now stored separately)
     // For backward compatibility, we'll skip these bytes if they exist in old files
     // The actual MQTT prefs will be loaded from /mqtt_prefs in loadMQTTPrefs()
@@ -141,17 +145,7 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     size_t mqtt_fields_size = getMQTTFieldsSize(_prefs);
 #else
     // If MQTT bridge not enabled, still skip these fields for file format compatibility
-    size_t mqtt_fields_size = 
-      sizeof(_prefs->mqtt_origin) + sizeof(_prefs->mqtt_iata) +
-      sizeof(_prefs->mqtt_status_enabled) + sizeof(_prefs->mqtt_packets_enabled) +
-      sizeof(_prefs->mqtt_raw_enabled) + sizeof(_prefs->mqtt_tx_enabled) +
-      sizeof(_prefs->mqtt_status_interval) + sizeof(_prefs->wifi_ssid) +
-      sizeof(_prefs->wifi_password) + sizeof(_prefs->timezone_string) +
-      sizeof(_prefs->timezone_offset) + sizeof(_prefs->mqtt_server) +
-      sizeof(_prefs->mqtt_port) + sizeof(_prefs->mqtt_username) +
-      sizeof(_prefs->mqtt_password) + sizeof(_prefs->mqtt_analyzer_us_enabled) +
-      sizeof(_prefs->mqtt_analyzer_eu_enabled) + sizeof(_prefs->mqtt_owner_public_key) +
-      sizeof(_prefs->mqtt_email);
+    size_t mqtt_fields_size = getMQTTFieldsSize();
 #endif
     uint8_t skip_buffer[512]; // Large enough buffer
     size_t remaining = mqtt_fields_size;
@@ -160,6 +154,7 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
       file.read(skip_buffer, to_read);
       remaining -= to_read;
     }
+    */
 
     // sanitise bad pref values
     _prefs->rx_delay_base = constrain(_prefs->rx_delay_base, 0, 20.0f);
@@ -243,24 +238,10 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
     file.write((uint8_t *)_prefs->owner_info, sizeof(_prefs->owner_info));  // 170
     // 290
 
+    /*
     // MQTT settings - no longer saved here (stored in separate /mqtt_prefs file)
     // Write zeros/padding to maintain file format compatibility
-#ifdef WITH_MQTT_BRIDGE
     size_t mqtt_fields_size = getMQTTFieldsSize(_prefs);
-#else
-    // If MQTT bridge not enabled, still write zeros for file format compatibility
-    size_t mqtt_fields_size = 
-      sizeof(_prefs->mqtt_origin) + sizeof(_prefs->mqtt_iata) +
-      sizeof(_prefs->mqtt_status_enabled) + sizeof(_prefs->mqtt_packets_enabled) +
-      sizeof(_prefs->mqtt_raw_enabled) + sizeof(_prefs->mqtt_tx_enabled) +
-      sizeof(_prefs->mqtt_status_interval) + sizeof(_prefs->wifi_ssid) +
-      sizeof(_prefs->wifi_password) + sizeof(_prefs->timezone_string) +
-      sizeof(_prefs->timezone_offset) + sizeof(_prefs->mqtt_server) +
-      sizeof(_prefs->mqtt_port) + sizeof(_prefs->mqtt_username) +
-      sizeof(_prefs->mqtt_password) + sizeof(_prefs->mqtt_analyzer_us_enabled) +
-      sizeof(_prefs->mqtt_analyzer_eu_enabled) + sizeof(_prefs->mqtt_owner_public_key) +
-      sizeof(_prefs->mqtt_email);
-#endif
     memset(pad, 0, sizeof(pad));
     size_t remaining = mqtt_fields_size;
     while (remaining > 0) {
@@ -268,6 +249,7 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
       file.write(pad, to_write);
       remaining -= to_write;
     }
+    */
 
     file.close();
   }
@@ -294,6 +276,7 @@ static void setMQTTPrefsDefaults(MQTTPrefs* prefs) {
   prefs->mqtt_remote_enabled = 0;      // Off by default
   prefs->mqtt_use_acl = 1;              // Use ACL by default
   prefs->mqtt_admin_public_key[0] = '\0'; // Empty by default
+  strncpy(prefs->timezone_ntp_server, "pool.ntp.org", sizeof(prefs->timezone_ntp_server));
   // String fields are already zero-initialized by memset
 }
 
@@ -301,6 +284,116 @@ void CommonCLI::loadMQTTPrefs(FILESYSTEM* fs) {
   // Initialize with defaults first
   setMQTTPrefsDefaults(&_mqtt_prefs);
   
+  // attempt json read first //
+  bool json_existed = fs->exists("/mqtt_prefs.json");
+  if (json_existed) {
+#if defined(RP2040_PLATFORM)
+        File file = fs->open("/mqtt_prefs.json", "r");
+#else
+        File file = fs->open("/mqtt_prefs.json");
+#endif
+        if (file) {
+            // read in and parse the file //
+            String content = file.readString();
+            DynamicJsonDocument config_doc(content.length());
+            deserializeJson(config_doc, content);
+
+            if (config_doc.containsKey("admin_public_key")) {
+                String str = config_doc["admin_public_key"].as<String>();
+                str.toCharArray(_mqtt_prefs.mqtt_admin_public_key, sizeof(_mqtt_prefs.mqtt_admin_public_key));
+            }
+            if (config_doc.containsKey("email")) {
+                String str = config_doc["email"].as<String>();
+                str.toCharArray(_mqtt_prefs.mqtt_email, sizeof(_mqtt_prefs.mqtt_email));
+            }
+            if (config_doc.containsKey("owner_public_key")) {
+                String str = config_doc["owner_public_key"].as<String>();
+                str.toCharArray(_mqtt_prefs.mqtt_owner_public_key, sizeof(_mqtt_prefs.mqtt_owner_public_key));
+            }
+
+            if (config_doc.containsKey("analyzer_us_enabled")) {
+                _mqtt_prefs.mqtt_analyzer_us_enabled = config_doc["analyzer_us_enabled"].as<bool>() ? 1 : 0;
+            }
+            if (config_doc.containsKey("analyzer_eu_enabled")) {
+                _mqtt_prefs.mqtt_analyzer_eu_enabled = config_doc["analyzer_eu_enabled"].as<bool>() ? 1 : 0;
+            }
+            if (config_doc.containsKey("iata")) {
+                String str = config_doc["iata"].as<String>();
+                str.toCharArray(_mqtt_prefs.mqtt_iata, sizeof(_mqtt_prefs.mqtt_iata));
+            }
+            if (config_doc.containsKey("packets_enabled")) {
+                _mqtt_prefs.mqtt_packets_enabled = config_doc["packets_enabled"].as<bool>() ? 1 : 0;
+            }
+            if (config_doc.containsKey("origin")) {
+                String str = config_doc["origin"].as<String>();
+                str.toCharArray(_mqtt_prefs.mqtt_origin, sizeof(_mqtt_prefs.mqtt_origin));
+            }
+            if (config_doc.containsKey("password")) {
+                String str = config_doc["password"].as<String>();
+                str.toCharArray(_mqtt_prefs.mqtt_password, sizeof(_mqtt_prefs.mqtt_password));
+            }
+            if (config_doc.containsKey("port")) {
+                _mqtt_prefs.mqtt_port = config_doc["port"].as<int>();
+            }
+            if (config_doc.containsKey("raw_enabled")) {
+                _mqtt_prefs.mqtt_raw_enabled = config_doc["raw_enabled"].as<bool>() ? 1 : 0;
+            }
+            if (config_doc.containsKey("remote_enabled")) {
+                _mqtt_prefs.mqtt_remote_enabled = config_doc["remote_enabled"].as<bool>() ? 1 : 0;
+            }
+            if (config_doc.containsKey("status_enabled")) {
+                _mqtt_prefs.mqtt_status_enabled = config_doc["status_enabled"].as<bool>() ? 1 : 0;
+            }
+            if (config_doc.containsKey("status_interval")) {
+                _mqtt_prefs.mqtt_status_interval = config_doc["status_interval"].as<int>();
+            }
+            if (config_doc.containsKey("server")) {
+                String str = config_doc["server"].as<String>();
+                str.toCharArray(_mqtt_prefs.mqtt_server, sizeof(_mqtt_prefs.mqtt_server));
+            }
+            if (config_doc.containsKey("timezone_offset")) {
+                _mqtt_prefs.timezone_offset = config_doc["timezone_offset"].as<int>();
+            }
+            if (config_doc.containsKey("timezone_string")) {
+                String str = config_doc["timezone_string"].as<String>();
+                str.toCharArray(_mqtt_prefs.timezone_string, sizeof(_mqtt_prefs.timezone_string));
+            }
+            if (config_doc.containsKey("tx_enabled")) {
+                _mqtt_prefs.mqtt_tx_enabled = config_doc["tx_enabled"].as<bool>() ? 1 : 0;
+            }
+            if (config_doc.containsKey("use_acl")) {
+                _mqtt_prefs.mqtt_use_acl = config_doc["use_acl"].as<bool>() ? 1 : 0;
+            }
+            if (config_doc.containsKey("username")) {
+                String str = config_doc["username"].as<String>();
+                str.toCharArray(_mqtt_prefs.mqtt_username, sizeof(_mqtt_prefs.mqtt_username));
+            }
+
+            if (config_doc.containsKey("wifi_password")) {
+                String str = config_doc["wifi_password"].as<String>();
+                str.toCharArray(_mqtt_prefs.wifi_password, sizeof(_mqtt_prefs.wifi_password));
+            }
+            if (config_doc.containsKey("wifi_power_save")) {
+                String str = config_doc["wifi_power_save"].as<String>();
+                if (str == "min") {
+                    _mqtt_prefs.wifi_power_save = 0;
+                }else if (str == "none") {
+                    _mqtt_prefs.wifi_power_save = 1;
+                }else if (str == "max") {
+                    _mqtt_prefs.wifi_power_save = 2;
+                }
+            }
+            if (config_doc.containsKey("wifi_ssid")) {
+                String str = config_doc["wifi_ssid"].as<String>();
+                str.toCharArray(_mqtt_prefs.wifi_ssid, sizeof(_mqtt_prefs.wifi_ssid));
+            }
+
+            file.close();
+
+            return;
+        }
+  }
+
   bool file_existed = fs->exists("/mqtt_prefs");
   if (file_existed) {
     // Load from separate MQTT prefs file
@@ -376,74 +469,125 @@ void CommonCLI::loadMQTTPrefs(FILESYSTEM* fs) {
 }
 
 void CommonCLI::saveMQTTPrefs(FILESYSTEM* fs) {
+  // create the json document //
+  DynamicJsonDocument config_doc(1024);
+
+  JsonObject config = config_doc.createNestedObject("config");
+  config["admin_public_key"] = _mqtt_prefs.mqtt_admin_public_key;
+  config["email"] = _mqtt_prefs.mqtt_email;
+  config["owner_public_key"] = _mqtt_prefs.mqtt_owner_public_key;
+
+  JsonObject mqtt = config_doc.createNestedObject("mqtt");
+  mqtt["analyzer_us_enabled"] = _mqtt_prefs.mqtt_analyzer_us_enabled ? true : false;
+  mqtt["analyzer_eu_enabled"] = _mqtt_prefs.mqtt_analyzer_eu_enabled ? true : false;
+  mqtt["iata"] = _mqtt_prefs.mqtt_iata;
+  mqtt["packets_enabled"] = _mqtt_prefs.mqtt_packets_enabled ? true : false;
+  mqtt["origin"] = _mqtt_prefs.mqtt_origin;
+  mqtt["password"] = _mqtt_prefs.mqtt_password;
+  mqtt["port"] = _mqtt_prefs.mqtt_port;
+  mqtt["raw_enabled"] = _mqtt_prefs.mqtt_raw_enabled ? true : false;
+  mqtt["remote_enabled"] = _mqtt_prefs.mqtt_remote_enabled ? true : false;
+  mqtt["status_enabled"] = _mqtt_prefs.mqtt_status_enabled ? true : false;
+  mqtt["status_interval"] = _mqtt_prefs.mqtt_status_interval;
+  mqtt["server"] = _mqtt_prefs.mqtt_server;
+  mqtt["tx_enabled"] = _mqtt_prefs.mqtt_tx_enabled ? true : false;
+  mqtt["use_acl"] = _mqtt_prefs.mqtt_use_acl ? true : false;
+  mqtt["username"] = _mqtt_prefs.mqtt_username;
+
+  JsonObject timezone = config_doc.createNestedObject("timezone");
+  timezone["ntp_server"] = _mqtt_prefs.timezone_ntp_server;
+  timezone["offset"] = _mqtt_prefs.timezone_offset;
+  timezone["string"] = _mqtt_prefs.timezone_string;
+
+  JsonObject wifi = config_doc.createNestedObject("wifi");
+  wifi["password"] = _mqtt_prefs.wifi_password;
+  if (0 == _mqtt_prefs.wifi_power_save) {
+      wifi["power_save"] = "min";
+  }else if (1 == _mqtt_prefs.wifi_power_save) {
+      wifi["power_save"] = "none";
+  }else if (2 == _mqtt_prefs.wifi_power_save) {
+      wifi["power_save"] = "max";
+  }
+  wifi["ssid"] = _mqtt_prefs.wifi_ssid;
+
+  // write it out //
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
   fs->remove("/mqtt_prefs");
-  File file = fs->open("/mqtt_prefs", FILE_O_WRITE);
+  File file = fs->open("/mqtt_prefs.json", FILE_O_WRITE);
 #elif defined(RP2040_PLATFORM)
-  File file = fs->open("/mqtt_prefs", "w");
+  File file = fs->open("/mqtt_prefs.json", "w");
 #else
-  File file = fs->open("/mqtt_prefs", "w", true);
+  File file = fs->open("/mqtt_prefs.json", "w", true);
 #endif
   if (file) {
-    file.write((uint8_t *)&_mqtt_prefs, sizeof(_mqtt_prefs));
-    file.close();
+    // write out the config file //
+    serializeJson(config_doc, file);
+    file.close();  
   }
 }
 
 void CommonCLI::syncMQTTPrefsToNodePrefs() {
   // Copy MQTT prefs to NodePrefs so existing code can access them
   // Use StrHelper::strncpy to ensure proper null termination
-  StrHelper::strncpy(_prefs->mqtt_origin, _mqtt_prefs.mqtt_origin, sizeof(_prefs->mqtt_origin));
-  StrHelper::strncpy(_prefs->mqtt_iata, _mqtt_prefs.mqtt_iata, sizeof(_prefs->mqtt_iata));
-  _prefs->mqtt_status_enabled = _mqtt_prefs.mqtt_status_enabled;
-  _prefs->mqtt_packets_enabled = _mqtt_prefs.mqtt_packets_enabled;
-  _prefs->mqtt_raw_enabled = _mqtt_prefs.mqtt_raw_enabled;
-  _prefs->mqtt_tx_enabled = _mqtt_prefs.mqtt_tx_enabled;
-  _prefs->mqtt_status_interval = _mqtt_prefs.mqtt_status_interval;
-  StrHelper::strncpy(_prefs->wifi_ssid, _mqtt_prefs.wifi_ssid, sizeof(_prefs->wifi_ssid));
-  StrHelper::strncpy(_prefs->wifi_password, _mqtt_prefs.wifi_password, sizeof(_prefs->wifi_password));
-  _prefs->wifi_power_save = _mqtt_prefs.wifi_power_save;
-  StrHelper::strncpy(_prefs->timezone_string, _mqtt_prefs.timezone_string, sizeof(_prefs->timezone_string));
-  _prefs->timezone_offset = _mqtt_prefs.timezone_offset;
-  StrHelper::strncpy(_prefs->mqtt_server, _mqtt_prefs.mqtt_server, sizeof(_prefs->mqtt_server));
-  _prefs->mqtt_port = _mqtt_prefs.mqtt_port;
-  StrHelper::strncpy(_prefs->mqtt_username, _mqtt_prefs.mqtt_username, sizeof(_prefs->mqtt_username));
-  StrHelper::strncpy(_prefs->mqtt_password, _mqtt_prefs.mqtt_password, sizeof(_prefs->mqtt_password));
+  StrHelper::strncpy(_prefs->mqtt_admin_public_key, _mqtt_prefs.mqtt_admin_public_key, sizeof(_prefs->mqtt_admin_public_key));
+  StrHelper::strncpy(_prefs->mqtt_email, _mqtt_prefs.mqtt_email, sizeof(_prefs->mqtt_email));
+  StrHelper::strncpy(_prefs->mqtt_owner_public_key, _mqtt_prefs.mqtt_owner_public_key, sizeof(_prefs->mqtt_owner_public_key));
+
   _prefs->mqtt_analyzer_us_enabled = _mqtt_prefs.mqtt_analyzer_us_enabled;
   _prefs->mqtt_analyzer_eu_enabled = _mqtt_prefs.mqtt_analyzer_eu_enabled;
-  StrHelper::strncpy(_prefs->mqtt_owner_public_key, _mqtt_prefs.mqtt_owner_public_key, sizeof(_prefs->mqtt_owner_public_key));
-  StrHelper::strncpy(_prefs->mqtt_email, _mqtt_prefs.mqtt_email, sizeof(_prefs->mqtt_email));
+  StrHelper::strncpy(_prefs->mqtt_iata, _mqtt_prefs.mqtt_iata, sizeof(_prefs->mqtt_iata));
+  StrHelper::strncpy(_prefs->mqtt_origin, _mqtt_prefs.mqtt_origin, sizeof(_prefs->mqtt_origin));
+  _prefs->mqtt_packets_enabled = _mqtt_prefs.mqtt_packets_enabled;
+  StrHelper::strncpy(_prefs->mqtt_password, _mqtt_prefs.mqtt_password, sizeof(_prefs->mqtt_password));
+  _prefs->mqtt_port = _mqtt_prefs.mqtt_port;
+  _prefs->mqtt_raw_enabled = _mqtt_prefs.mqtt_raw_enabled;
   _prefs->mqtt_remote_enabled = _mqtt_prefs.mqtt_remote_enabled;
+  _prefs->mqtt_status_enabled = _mqtt_prefs.mqtt_status_enabled;
+  _prefs->mqtt_status_interval = _mqtt_prefs.mqtt_status_interval;
+  StrHelper::strncpy(_prefs->mqtt_server, _mqtt_prefs.mqtt_server, sizeof(_prefs->mqtt_server));
+  _prefs->mqtt_tx_enabled = _mqtt_prefs.mqtt_tx_enabled;
   _prefs->mqtt_use_acl = _mqtt_prefs.mqtt_use_acl;
-  StrHelper::strncpy(_prefs->mqtt_admin_public_key, _mqtt_prefs.mqtt_admin_public_key, sizeof(_prefs->mqtt_admin_public_key));
+  StrHelper::strncpy(_prefs->mqtt_username, _mqtt_prefs.mqtt_username, sizeof(_prefs->mqtt_username));
+
+  StrHelper::strncpy(_prefs->timezone_ntp_server, _mqtt_prefs.timezone_ntp_server, sizeof(_prefs->timezone_ntp_server));
+  _prefs->timezone_offset = _mqtt_prefs.timezone_offset;
+  StrHelper::strncpy(_prefs->timezone_string, _mqtt_prefs.timezone_string, sizeof(_prefs->timezone_string));
+
+  StrHelper::strncpy(_prefs->wifi_password, _mqtt_prefs.wifi_password, sizeof(_prefs->wifi_password));
+  _prefs->wifi_power_save = _mqtt_prefs.wifi_power_save;
+  StrHelper::strncpy(_prefs->wifi_ssid, _mqtt_prefs.wifi_ssid, sizeof(_prefs->wifi_ssid));
 }
 
 void CommonCLI::syncNodePrefsToMQTTPrefs() {
   // Copy NodePrefs to MQTT prefs (used when saving after changes via CLI)
   // Use StrHelper::strncpy to ensure proper null termination
-  StrHelper::strncpy(_mqtt_prefs.mqtt_origin, _prefs->mqtt_origin, sizeof(_mqtt_prefs.mqtt_origin));
-  StrHelper::strncpy(_mqtt_prefs.mqtt_iata, _prefs->mqtt_iata, sizeof(_mqtt_prefs.mqtt_iata));
-  _mqtt_prefs.mqtt_status_enabled = _prefs->mqtt_status_enabled;
-  _mqtt_prefs.mqtt_packets_enabled = _prefs->mqtt_packets_enabled;
-  _mqtt_prefs.mqtt_raw_enabled = _prefs->mqtt_raw_enabled;
-  _mqtt_prefs.mqtt_tx_enabled = _prefs->mqtt_tx_enabled;
-  _mqtt_prefs.mqtt_status_interval = _prefs->mqtt_status_interval;
-  StrHelper::strncpy(_mqtt_prefs.wifi_ssid, _prefs->wifi_ssid, sizeof(_mqtt_prefs.wifi_ssid));
-  StrHelper::strncpy(_mqtt_prefs.wifi_password, _prefs->wifi_password, sizeof(_mqtt_prefs.wifi_password));
-  _mqtt_prefs.wifi_power_save = _prefs->wifi_power_save;
-  StrHelper::strncpy(_mqtt_prefs.timezone_string, _prefs->timezone_string, sizeof(_mqtt_prefs.timezone_string));
-  _mqtt_prefs.timezone_offset = _prefs->timezone_offset;
-  StrHelper::strncpy(_mqtt_prefs.mqtt_server, _prefs->mqtt_server, sizeof(_mqtt_prefs.mqtt_server));
-  _mqtt_prefs.mqtt_port = _prefs->mqtt_port;
-  StrHelper::strncpy(_mqtt_prefs.mqtt_username, _prefs->mqtt_username, sizeof(_mqtt_prefs.mqtt_username));
-  StrHelper::strncpy(_mqtt_prefs.mqtt_password, _prefs->mqtt_password, sizeof(_mqtt_prefs.mqtt_password));
-  _mqtt_prefs.mqtt_analyzer_us_enabled = _prefs->mqtt_analyzer_us_enabled;
-  _mqtt_prefs.mqtt_analyzer_eu_enabled = _prefs->mqtt_analyzer_eu_enabled;
+  StrHelper::strncpy(_mqtt_prefs.mqtt_admin_public_key, _prefs->mqtt_admin_public_key, sizeof(_mqtt_prefs.mqtt_admin_public_key));
   StrHelper::strncpy(_mqtt_prefs.mqtt_owner_public_key, _prefs->mqtt_owner_public_key, sizeof(_mqtt_prefs.mqtt_owner_public_key));
   StrHelper::strncpy(_mqtt_prefs.mqtt_email, _prefs->mqtt_email, sizeof(_mqtt_prefs.mqtt_email));
+
+  _mqtt_prefs.mqtt_analyzer_us_enabled = _prefs->mqtt_analyzer_us_enabled;
+  _mqtt_prefs.mqtt_analyzer_eu_enabled = _prefs->mqtt_analyzer_eu_enabled;
+  StrHelper::strncpy(_mqtt_prefs.mqtt_iata, _prefs->mqtt_iata, sizeof(_mqtt_prefs.mqtt_iata));
+  StrHelper::strncpy(_mqtt_prefs.mqtt_origin, _prefs->mqtt_origin, sizeof(_mqtt_prefs.mqtt_origin));
+  _mqtt_prefs.mqtt_packets_enabled = _prefs->mqtt_packets_enabled;
+  StrHelper::strncpy(_mqtt_prefs.mqtt_password, _prefs->mqtt_password, sizeof(_mqtt_prefs.mqtt_password));
+  _mqtt_prefs.mqtt_port = _prefs->mqtt_port;
+  _mqtt_prefs.mqtt_raw_enabled = _prefs->mqtt_raw_enabled;
   _mqtt_prefs.mqtt_remote_enabled = _prefs->mqtt_remote_enabled;
+  _mqtt_prefs.mqtt_status_enabled = _prefs->mqtt_status_enabled;
+  _mqtt_prefs.mqtt_status_interval = _prefs->mqtt_status_interval;
+  StrHelper::strncpy(_mqtt_prefs.mqtt_server, _prefs->mqtt_server, sizeof(_mqtt_prefs.mqtt_server));
+  _mqtt_prefs.mqtt_tx_enabled = _prefs->mqtt_tx_enabled;
   _mqtt_prefs.mqtt_use_acl = _prefs->mqtt_use_acl;
-  StrHelper::strncpy(_mqtt_prefs.mqtt_admin_public_key, _prefs->mqtt_admin_public_key, sizeof(_mqtt_prefs.mqtt_admin_public_key));
+  StrHelper::strncpy(_mqtt_prefs.mqtt_username, _prefs->mqtt_username, sizeof(_mqtt_prefs.mqtt_username));
+
+  StrHelper::strncpy(_mqtt_prefs.timezone_ntp_server, _prefs->timezone_ntp_server, sizeof(_mqtt_prefs.timezone_ntp_server));
+  _mqtt_prefs.timezone_offset = _prefs->timezone_offset;
+  StrHelper::strncpy(_mqtt_prefs.timezone_string, _prefs->timezone_string, sizeof(_mqtt_prefs.timezone_string));
+
+  StrHelper::strncpy(_mqtt_prefs.wifi_password, _prefs->wifi_password, sizeof(_mqtt_prefs.wifi_password));
+  _mqtt_prefs.wifi_power_save = _prefs->wifi_power_save;
+  StrHelper::strncpy(_mqtt_prefs.wifi_ssid, _prefs->wifi_ssid, sizeof(_mqtt_prefs.wifi_ssid));
 }
 #endif
 
@@ -693,6 +837,8 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
                 sprintf(reply, "> %s", ps_name);
               } else if (memcmp(config, "timezone", 8) == 0) {
                 sprintf(reply, "> %s", _prefs->timezone_string);
+              } else if (memcmp(config, "timezone.ntp", 12) == 0) {
+                sprintf(reply, "> %s", _prefs->timezone_ntp_server);
               } else if (memcmp(config, "timezone.offset", 15) == 0) {
                 sprintf(reply, "> %d", _prefs->timezone_offset);
               } else if (memcmp(config, "mqtt.analyzer.us", 17) == 0) {
@@ -1023,6 +1169,10 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
                   sprintf(reply, "OK - saved as %s", ps_name);
                   #endif
                 }
+              } else if (memcmp(config, "timezone.ntp ", 9) == 0) {
+                StrHelper::strncpy(_prefs->timezone_ntp_server, &config[9], sizeof(_prefs->timezone_ntp_server));
+                savePrefs();
+                strcpy(reply, "OK");
               } else if (memcmp(config, "timezone ", 9) == 0) {
                 StrHelper::strncpy(_prefs->timezone_string, &config[9], sizeof(_prefs->timezone_string));
                 savePrefs();
