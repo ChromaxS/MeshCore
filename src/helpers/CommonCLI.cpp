@@ -818,42 +818,42 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         sprintf(reply, "> %s", _prefs->bridge_secret);
 #endif
 #ifdef WITH_MQTT_BRIDGE
-      } else if (memcmp(config, "mqtt.origin", 11) == 0) {
+      } else if (strcmp(config, "mqtt.origin") == 0) {
         if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
         sprintf(reply, "> %s", _prefs->mqtt_origin);
-      } else if (memcmp(config, "mqtt.iata", 9) == 0) {
+      } else if (strcmp(config, "mqtt.iata") == 0) {
         sprintf(reply, "> %s", _prefs->mqtt_iata);
-      } else if (memcmp(config, "mqtt.status", 11) == 0) {
+      } else if (strcmp(config, "mqtt.status") == 0) {
         sprintf(reply, "> %s", _prefs->mqtt_status_enabled ? "on" : "off");
-      } else if (memcmp(config, "mqtt.packets", 12) == 0) {
+      } else if (strcmp(config, "mqtt.packets") == 0) {
         sprintf(reply, "> %s", _prefs->mqtt_packets_enabled ? "on" : "off");
-              } else if (memcmp(config, "mqtt.raw", 8) == 0) {
+              } else if (strcmp(config, "mqtt.raw") == 0) {
                 sprintf(reply, "> %s", _prefs->mqtt_raw_enabled ? "on" : "off");
-              } else if (memcmp(config, "mqtt.tx", 7) == 0) {
+              } else if (strcmp(config, "mqtt.tx") == 0) {
                 sprintf(reply, "> %s", _prefs->mqtt_tx_enabled ? "on" : "off");
-              } else if (memcmp(config, "mqtt.interval", 13) == 0) {
+              } else if (strcmp(config, "mqtt.interval") == 0) {
                 // Display interval in minutes (rounded)
                 uint32_t minutes = (_prefs->mqtt_status_interval + 29999) / 60000; // Round up
                 sprintf(reply, "> %u minutes (%lu ms)", minutes, _prefs->mqtt_status_interval);
-              } else if (memcmp(config, "mqtt.server", 11) == 0) {
+              } else if (strcmp(config, "mqtt.server") == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->mqtt_server);
-              } else if (memcmp(config, "mqtt.port", 9) == 0) {
+              } else if (strcmp(config, "mqtt.port") == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 sprintf(reply, "> %d", _prefs->mqtt_port);
-              } else if (memcmp(config, "mqtt.username", 13) == 0) {
+              } else if (strcmp(config, "mqtt.username") == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->mqtt_username);
-              } else if (memcmp(config, "mqtt.password", 13) == 0) {
+              } else if (strcmp(config, "mqtt.password") == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->mqtt_password);
-              } else if (memcmp(config, "wifi.ssid", 9) == 0) {
+              } else if (strcmp(config, "wifi.ssid") == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->wifi_ssid);
-              } else if (memcmp(config, "wifi.pwd", 8) == 0) {
+              } else if (strcmp(config, "wifi.pwd") == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->wifi_password);
-              } else if (memcmp(config, "wifi.status", 11) == 0) {
+              } else if (strcmp(config, "wifi.status") == 0) {
                 wl_status_t status = WiFi.status();
                 const char* status_str;
                 switch(status) {
@@ -873,22 +873,22 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
                 } else {
                   sprintf(reply, "> %s (code: %d)", status_str, status);
                 }
-              } else if (memcmp(config, "wifi.powersave", 14) == 0) {
+              } else if (strcmp(config, "wifi.powersave") == 0) {
                 uint8_t ps = _prefs->wifi_power_save;
                 const char* ps_name = (ps == 1) ? "none" : (ps == 2) ? "max" : "min";
                 sprintf(reply, "> %s", ps_name);
-              } else if (memcmp(config, "timezone.ntp", 12) == 0) {
+              } else if (strcmp(config, "timezone.ntp") == 0) {
                 if (0 != sender_timestamp) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->timezone_ntp_server);
-              } else if (memcmp(config, "timezone.offset", 15) == 0) {
+              } else if (strcmp(config, "timezone.offset") == 0) {
                 sprintf(reply, "> %d", _prefs->timezone_offset);
-              } else if (memcmp(config, "timezone", 8) == 0) {
+              } else if (strcmp(config, "timezone.string") == 0) {
                 sprintf(reply, "> %s", _prefs->timezone_string);
-              } else if (memcmp(config, "mqtt.analyzer.us", 17) == 0) {
+              } else if (strcmp(config, "mqtt.analyzer.us") == 0) {
                 sprintf(reply, "> %s", _prefs->mqtt_analyzer_us_enabled ? "on" : "off");
-              } else if (memcmp(config, "mqtt.analyzer.eu", 17) == 0) {
+              } else if (strcmp(config, "mqtt.analyzer.eu") == 0) {
                 sprintf(reply, "> %s", _prefs->mqtt_analyzer_eu_enabled ? "on" : "off");
-              } else if (memcmp(config, "mqtt.owner", 10) == 0) {  // from serial command line only
+              } else if (strcmp(config, "mqtt.owner") == 0) {  // from serial command line only
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
 
                 if (_prefs->mqtt_owner_public_key[0] != '\0') {
@@ -896,7 +896,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
                 } else {
                   strcpy(reply, "> (not set)");
                 }
-              } else if (memcmp(config, "mqtt.email", 10) == 0) {  // from serial command line only
+              } else if (strcmp(config, "mqtt.email") == 0) {  // from serial command line only
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
 
                 if (_prefs->mqtt_email[0] != '\0') {
@@ -904,14 +904,14 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
                 } else {
                   strcpy(reply, "> (not set)");
                 }
-              } else if (memcmp(config, "mqtt.config.valid", 17) == 0) {
+              } else if (strcmp(config, "mqtt.config.valid") == 0) {
                 bool valid = MQTTBridge::isConfigValid(_prefs);
                 sprintf(reply, "> %s", valid ? "valid" : "invalid");
-              } else if (memcmp(config, "mqtt.remote", 11) == 0) {
+              } else if (strcmp(config, "mqtt.remote") == 0) {
                 sprintf(reply, "> %s", _prefs->mqtt_remote_enabled ? "on" : "off");
-              } else if (memcmp(config, "mqtt.useacl", 11) == 0) {
+              } else if (strcmp(config, "mqtt.useacl") == 0) {
                 sprintf(reply, "> %s", _prefs->mqtt_use_acl ? "on" : "off");
-              } else if (memcmp(config, "mqtt.admin", 10) == 0) {
+              } else if (strcmp(config, "mqtt.admin") == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
 
                 // Only from serial command line (not remote)
@@ -1259,7 +1259,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
                   sprintf(reply, "OK - saved as %s", ps_name);
                   #endif
                 }
-              } else if (memcmp(config, "timezone ", 9) == 0) {
+              } else if (memcmp(config, "timezone.string ", 16) == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 StrHelper::strncpy(_prefs->timezone_string, &config[9], sizeof(_prefs->timezone_string));
                 savePrefs();
