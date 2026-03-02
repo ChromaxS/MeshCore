@@ -382,7 +382,7 @@ void CommonCLI::loadMQTTPrefs(FILESYSTEM* fs) {
                 if (config_doc["timezone"].containsKey("offset")) {
                     _mqtt_prefs.timezone_offset = config_doc["mqtt"]["offset"].as<int>();
                 }
-                if (config_doc["timezone"].containsKey("timezone")) {
+                if (config_doc["timezone"].containsKey("string")) {
                     String str = config_doc["timezone"]["string"].as<String>();
                     str.toCharArray(_mqtt_prefs.timezone_string, sizeof(_mqtt_prefs.timezone_string));
                 }
@@ -877,13 +877,13 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
                 uint8_t ps = _prefs->wifi_power_save;
                 const char* ps_name = (ps == 1) ? "none" : (ps == 2) ? "max" : "min";
                 sprintf(reply, "> %s", ps_name);
-              } else if (memcmp(config, "timezone", 8) == 0) {
-                sprintf(reply, "> %s", _prefs->timezone_string);
               } else if (memcmp(config, "timezone.ntp", 12) == 0) {
                 if (0 != sender_timestamp) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->timezone_ntp_server);
               } else if (memcmp(config, "timezone.offset", 15) == 0) {
                 sprintf(reply, "> %d", _prefs->timezone_offset);
+              } else if (memcmp(config, "timezone", 8) == 0) {
+                sprintf(reply, "> %s", _prefs->timezone_string);
               } else if (memcmp(config, "mqtt.analyzer.us", 17) == 0) {
                 sprintf(reply, "> %s", _prefs->mqtt_analyzer_us_enabled ? "on" : "off");
               } else if (memcmp(config, "mqtt.analyzer.eu", 17) == 0) {
@@ -1259,14 +1259,14 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
                   sprintf(reply, "OK - saved as %s", ps_name);
                   #endif
                 }
-              } else if (memcmp(config, "timezone.ntp ", 9) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                StrHelper::strncpy(_prefs->timezone_ntp_server, &config[9], sizeof(_prefs->timezone_ntp_server));
-                savePrefs();
-                strcpy(reply, "OK");
               } else if (memcmp(config, "timezone ", 9) == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 StrHelper::strncpy(_prefs->timezone_string, &config[9], sizeof(_prefs->timezone_string));
+                savePrefs();
+                strcpy(reply, "OK");
+              } else if (memcmp(config, "timezone.ntp ", 13) == 0) {
+                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+                StrHelper::strncpy(_prefs->timezone_ntp_server, &config[13], sizeof(_prefs->timezone_ntp_server));
                 savePrefs();
                 strcpy(reply, "OK");
               } else if (memcmp(config, "timezone.offset ", 16) == 0) {
