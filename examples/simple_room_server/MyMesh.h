@@ -31,11 +31,11 @@
 /* ------------------------------ Config -------------------------------- */
 
 #ifndef FIRMWARE_BUILD_DATE
-  #define FIRMWARE_BUILD_DATE   "15 Feb 2026"
+  #define FIRMWARE_BUILD_DATE   "02 Mar 2026"
 #endif
 
 #ifndef FIRMWARE_VERSION
-  #define FIRMWARE_VERSION   "v1.13.0"
+  #define FIRMWARE_VERSION   "v1.13.0-mqtt-observer/chro-1"
 #endif
 
 #ifndef LORA_FREQ
