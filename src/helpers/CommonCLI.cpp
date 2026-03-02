@@ -697,7 +697,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         strcpy(reply, "ERR: bad pubkey");
       }
     } else if (memcmp(command, "tempradio ", 10) == 0) {
-      if (0 == sender_timestamp) goto handleCommandDenied;
+      if (0 != sender_timestamp) goto handleCommandDenied;
       strcpy(tmp, &command[10]);
       const char *parts[5];
       int num = mesh::Utils::parseTextParts(tmp, parts, 5);
@@ -713,7 +713,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         strcpy(reply, "Error, invalid params");
       }
     } else if (memcmp(command, "password ", 9) == 0) {
-      if (0 == sender_timestamp) goto handleCommandDenied;
+      if (0 != sender_timestamp) goto handleCommandDenied;
       // change admin password
       StrHelper::strncpy(_prefs->password, &command[9], sizeof(_prefs->password));
       savePrefs();
@@ -880,7 +880,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
               } else if (memcmp(config, "timezone", 8) == 0) {
                 sprintf(reply, "> %s", _prefs->timezone_string);
               } else if (memcmp(config, "timezone.ntp", 12) == 0) {
-                if (0 == sender_timestamp) goto handleCommandDenied;
+                if (0 != sender_timestamp) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->timezone_ntp_server);
               } else if (memcmp(config, "timezone.offset", 15) == 0) {
                 sprintf(reply, "> %d", _prefs->timezone_offset);
@@ -984,7 +984,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         savePrefs();
         strcpy(reply, "OK");
       } else if (memcmp(config, "prv.key ", 8) == 0) {
-        if (0 == sender_timestamp) goto handleCommandDenied;
+        if (0 != sender_timestamp) goto handleCommandDenied;
 
         uint8_t prv_key[PRV_KEY_SIZE];
         bool success = mesh::Utils::fromHex(prv_key, PRV_KEY_SIZE, &config[8]);
@@ -999,7 +999,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
           strcpy(reply, "Error, bad key");
         }
       } else if (memcmp(config, "name ", 5) == 0) {
-        if (0 == sender_timestamp) goto handleCommandDenied;
+        if (0 != sender_timestamp) goto handleCommandDenied;
         if (isValidName(&config[5])) {
           StrHelper::strncpy(_prefs->node_name, &config[5], sizeof(_prefs->node_name));
           savePrefs();
@@ -1013,7 +1013,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         savePrefs();
         strcpy(reply, _prefs->disable_fwd ? "OK - repeat is now OFF" : "OK - repeat is now ON");
       } else if (memcmp(config, "radio ", 6) == 0) {
-        if (0 == sender_timestamp) goto handleCommandDenied;
+        if (0 != sender_timestamp) goto handleCommandDenied;
         strcpy(tmp, &config[6]);
         const char *parts[4];
         int num = mesh::Utils::parseTextParts(tmp, parts, 4);
@@ -1082,7 +1082,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
           strcpy(reply, "Error, cannot be negative");
         }
       } else if (memcmp(config, "owner.info ", 11) == 0) {
-        if (0 == sender_timestamp) goto handleCommandDenied;
+        if (0 != sender_timestamp) goto handleCommandDenied;
 
         config += 11;
         char *dp = _prefs->owner_info;
@@ -1100,7 +1100,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         _callbacks->setTxPower(_prefs->tx_power_dbm);
         strcpy(reply, "OK");
       } else if (memcmp(config, "freq ", 5) == 0) {
-        if (0 == sender_timestamp) goto handleCommandDenied;
+        if (0 != sender_timestamp) goto handleCommandDenied;
 
         _prefs->freq = atof(&config[5]);
         savePrefs();
@@ -1367,7 +1367,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         sprintf(reply, "unknown config: %s", config);
       }
     } else if (strcmp(command, "erase") == 0) {
-      if (0 == sender_timestamp) goto handleCommandDenied;
+      if (0 != sender_timestamp) goto handleCommandDenied;
 
       bool s = _callbacks->formatFileSystem();
       sprintf(reply, "File system erase: %s", s ? "OK" : "Err");
