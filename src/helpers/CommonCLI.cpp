@@ -1093,6 +1093,11 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
               } else if (strcmp(config, "mqtt.password") == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->mqtt_password);
+              } else if (strcmp(config, "wifi.ntp.server") == 0) {
+                if (0 != sender_timestamp) goto handleCommandDenied;
+                sprintf(reply, "> %s", _prefs->wifi_ntp_server);
+              } else if (strcmp(config, "wifi.ntp.enabled") == 0) {
+                sprintf(reply, "> %s", _prefs->wifi_ntp_enabled ? "on" : "off");
               } else if (strcmp(config, "wifi.ssid") == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->wifi_ssid);
@@ -1123,11 +1128,6 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
                 uint8_t ps = _prefs->wifi_power_save;
                 const char* ps_name = (ps == 1) ? "none" : (ps == 2) ? "max" : "min";
                 sprintf(reply, "> %s", ps_name);
-              } else if (strcmp(config, "timezone.ntp") == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                sprintf(reply, "> %s", _prefs->wifi_ntp_server);
-              } else if (strcmp(config, "timezone.ntp.enabled") == 0) {
-                sprintf(reply, "> %s", _prefs->wifi_ntp_enabled ? "on" : "off");
               } else if (strcmp(config, "timezone.offset") == 0) {
                 sprintf(reply, "> %d", _prefs->timezone_offset);
               } else if (strcmp(config, "timezone.string") == 0) {
@@ -1454,6 +1454,16 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
                 } else {
                   strcpy(reply, "Error: interval must be between 1-60 minutes");
                 }
+              } else if (memcmp(config, "wifi.ntp.enabled ", 17) == 0) {
+                if (0 != sender_timestamp) goto handleCommandDenied;
+                _prefs->wifi_ntp_enabled = memcmp(&config[17], "on", 2) == 0;
+                savePrefs();
+                strcpy(reply, "OK");
+              } else if (memcmp(config, "wifi.ntp.server ", 16) == 0) {
+                if (0 != sender_timestamp) goto handleCommandDenied;
+                StrHelper::strncpy(_prefs->wifi_ntp_server, &config[16], sizeof(_prefs->wifi_ntp_server));
+                savePrefs();
+                strcpy(reply, "OK");
               } else if (memcmp(config, "wifi.ssid ", 10) == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 StrHelper::strncpy(_prefs->wifi_ssid, &config[10], sizeof(_prefs->wifi_ssid));
@@ -1510,16 +1520,6 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
               } else if (memcmp(config, "timezone.string ", 16) == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 StrHelper::strncpy(_prefs->timezone_string, &config[9], sizeof(_prefs->timezone_string));
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "timezone.enabled ", 17) == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                _prefs->wifi_ntp_enabled = memcmp(&config[17], "on", 2) == 0;
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "timezone.ntp ", 13) == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                StrHelper::strncpy(_prefs->wifi_ntp_server, &config[13], sizeof(_prefs->wifi_ntp_server));
                 savePrefs();
                 strcpy(reply, "OK");
               } else if (memcmp(config, "timezone.offset ", 16) == 0) {
