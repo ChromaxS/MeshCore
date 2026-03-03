@@ -49,7 +49,7 @@ MQTTBridge::MQTTBridge(NodePrefs *prefs, mesh::PacketManager *mgr, mesh::RTCCloc
     : BridgeBase(prefs, mgr, rtc), _mqtt_client(nullptr),
       _active_brokers(0), _queue_head(0), _queue_tail(0), _queue_count(0),
       _last_status_publish(0), _last_status_retry(0), _status_interval(300000), // 5 minutes default
-              _ntp_client(_ntp_udp, prefs->timezone_ntp_server, 0, 60000), _last_ntp_sync(0), _ntp_synced(false),
+              _last_ntp_sync(0), _ntp_synced(false),
               _timezone(nullptr), _last_raw_len(0), _last_snr(0), _last_rssi(0), _last_raw_timestamp(0),
               _analyzer_us_enabled(false), _analyzer_eu_enabled(false), _identity(identity),
               _analyzer_us_client(nullptr), _analyzer_eu_client(nullptr), _config_valid(false),
@@ -2033,101 +2033,107 @@ void MQTTBridge::syncTimeWithNTP() {
     MQTT_DEBUG_PRINTLN("Cannot sync time - WiFi not connected");
     return;
   }
-  if (!*_prefs->timezone_ntp_server) {
+  if (!_prefs->wifi_ntp_enabled) {
+    MQTT_DEBUG_PRINTLN("Cannot sync time - NTP not enabled");
+    return;
+  }
+  if (!*_prefs->wifi_ntp_server) {
       MQTT_DEBUG_PRINTLN("Cannot sync time - NTP not configured");
       return;
   }
-  
-  MQTT_DEBUG_PRINTLN("Syncing time with NTP...");
-  
+
+  MQTT_DEBUG_PRINTLN("Syncing time with NTP: %s...", _prefs->wifi_ntp_server);
+
   // Test DNS resolution before attempting NTP sync
   #ifdef ESP_PLATFORM
   IPAddress resolved_ip;
-  if (!WiFi.hostByName(_prefs->timezone_ntp_server, resolved_ip)) {
-    MQTT_DEBUG_PRINTLN("WARNING: DNS resolution failed for %s - NTP sync may fail", _prefs->timezone_ntp_server);
+  if (!WiFi.hostByName(_prefs->wifi_ntp_server, resolved_ip)) {
+    MQTT_DEBUG_PRINTLN("WARNING: DNS resolution failed for %s - NTP sync may fail", _prefs->wifi_ntp_server);
   }
   #endif
-  
+
   // Begin NTP client
-  _ntp_client.begin();
-  
+  NTPClient ntp_client(_ntp_udp, _prefs->wifi_ntp_server, 0, 60000);
+  ntp_client.begin();
+
   // Force update (blocking call with timeout)
-  if (_ntp_client.forceUpdate()) {
-    unsigned long epochTime = _ntp_client.getEpochTime();
-    
-    // Set system timezone to UTC first
-    // This ensures time() returns UTC time
-    configTime(0, 0, _prefs->timezone_ntp_server);
-    
-    // Update the device's RTC clock with UTC time (if available)
-    if (_rtc) {
-      _rtc->setCurrentTime(epochTime);
+  if (!ntp_client.forceUpdate()) {
+      MQTT_DEBUG_PRINTLN("NTP sync failed");
+      return;
+  }
+
+  unsigned long epochTime = ntp_client.getEpochTime();
+
+  // Set system timezone to UTC first
+  // This ensures time() returns UTC time
+  configTime(0, 0, _prefs->wifi_ntp_server);
+
+  // Update the device's RTC clock with UTC time (if available)
+  if (_rtc) {
+    _rtc->setCurrentTime(epochTime);
+  }
+
+  // Mark NTP as synced regardless of RTC availability
+  // JWT tokens need valid time, which is now available via time()
+  _ntp_synced = true;
+  _last_ntp_sync = millis();
+
+  MQTT_DEBUG_PRINTLN("Time synced: %lu", epochTime);
+
+  // Set timezone from string (with DST support) - only if changed
+  static char last_timezone[64] = "";
+  if (strcmp(_prefs->timezone_string, last_timezone) != 0) {
+    MQTT_DEBUG_PRINTLN("Setting timezone: %s", _prefs->timezone_string);
+
+    // Clean up old timezone object to prevent memory leak
+    if (_timezone) {
+      delete _timezone;
+      _timezone = nullptr;
     }
-    
-    // Mark NTP as synced regardless of RTC availability
-    // JWT tokens need valid time, which is now available via time()
-    _ntp_synced = true;
-    _last_ntp_sync = millis();
-    
-    MQTT_DEBUG_PRINTLN("Time synced: %lu", epochTime);
-    
-    // Set timezone from string (with DST support) - only if changed
-    static char last_timezone[64] = "";
-    if (strcmp(_prefs->timezone_string, last_timezone) != 0) {
-      MQTT_DEBUG_PRINTLN("Setting timezone: %s", _prefs->timezone_string);
-      
-      // Clean up old timezone object to prevent memory leak
-      if (_timezone) {
-        delete _timezone;
-        _timezone = nullptr;
-      }
-      
-      // Create timezone object based on timezone string
-      Timezone* tz = createTimezoneFromString(_prefs->timezone_string);
-      if (tz) {
-        MQTT_DEBUG_PRINTLN("Timezone created successfully");
-        // Store timezone for later use in message building
-        _timezone = tz;
-      } else {
-        MQTT_DEBUG_PRINTLN("Failed to create timezone, using UTC");
-        // Create UTC timezone as fallback
-        TimeChangeRule utc = {"UTC", Last, Sun, Mar, 0, 0};
-        _timezone = new Timezone(utc, utc);
-      }
-      
-      // Remember this timezone string
-      strncpy(last_timezone, _prefs->timezone_string, sizeof(last_timezone) - 1);
-      last_timezone[sizeof(last_timezone) - 1] = '\0';
-      
-      // Force memory defragmentation after timezone recreation
-      MQTT_DEBUG_PRINTLN("Forcing memory defragmentation after timezone change");
-      void* temp = malloc(1024);
-      if (temp) {
-        free(temp);
-        MQTT_DEBUG_PRINTLN("Defragmentation complete. Max Alloc: %d", ESP.getMaxAllocHeap());
-      }
+
+    // Create timezone object based on timezone string
+    Timezone* tz = createTimezoneFromString(_prefs->timezone_string);
+    if (tz) {
+      MQTT_DEBUG_PRINTLN("Timezone created successfully");
+      // Store timezone for later use in message building
+      _timezone = tz;
+    } else {
+      MQTT_DEBUG_PRINTLN("Failed to create timezone, using UTC");
+      // Create UTC timezone as fallback
+      TimeChangeRule utc = {"UTC", Last, Sun, Mar, 0, 0};
+      _timezone = new Timezone(utc, utc);
     }
-    
-    // Show current time in both UTC and local
-    struct tm* utc_timeinfo = gmtime((time_t*)&epochTime);
-    struct tm* local_timeinfo = localtime((time_t*)&epochTime);
-    
-    if (utc_timeinfo) {
-      MQTT_DEBUG_PRINTLN("UTC time: %04d-%02d-%02d %02d:%02d:%02d", 
-                        utc_timeinfo->tm_year + 1900, utc_timeinfo->tm_mon + 1, utc_timeinfo->tm_mday,
-                        utc_timeinfo->tm_hour, utc_timeinfo->tm_min, utc_timeinfo->tm_sec);
-    }
-    
-    if (local_timeinfo) {
-      MQTT_DEBUG_PRINTLN("Local time: %04d-%02d-%02d %02d:%02d:%02d", 
-                        local_timeinfo->tm_year + 1900, local_timeinfo->tm_mon + 1, local_timeinfo->tm_mday,
-                        local_timeinfo->tm_hour, local_timeinfo->tm_min, local_timeinfo->tm_sec);
-    }
-  } else {
-    MQTT_DEBUG_PRINTLN("NTP sync failed");
+
+    // Remember this timezone string
+    strncpy(last_timezone, _prefs->timezone_string, sizeof(last_timezone) - 1);
+    last_timezone[sizeof(last_timezone) - 1] = '\0';
+  }
+
+  // Force memory defragmentation after timezone recreation
+  MQTT_DEBUG_PRINTLN("Forcing memory defragmentation after timezone change");
+  void* temp = malloc(1024);
+  if (temp) {
+    free(temp);
+    MQTT_DEBUG_PRINTLN("Defragmentation complete. Max Alloc: %d", ESP.getMaxAllocHeap());
+  }
+
+  // Show current time in both UTC and local
+  struct tm* utc_timeinfo = gmtime((time_t*)&epochTime);
+  struct tm* local_timeinfo = localtime((time_t*)&epochTime);
+
+  if (utc_timeinfo) {
+    MQTT_DEBUG_PRINTLN("UTC time: %04d-%02d-%02d %02d:%02d:%02d",
+                    utc_timeinfo->tm_year + 1900, utc_timeinfo->tm_mon + 1, utc_timeinfo->tm_mday,
+                    utc_timeinfo->tm_hour, utc_timeinfo->tm_min, utc_timeinfo->tm_sec);
+  }
+
+  if (local_timeinfo) {
+    MQTT_DEBUG_PRINTLN("Local time: %04d-%02d-%02d %02d:%02d:%02d",
+                      local_timeinfo->tm_year + 1900, local_timeinfo->tm_mon + 1, local_timeinfo->tm_mday,
+                      local_timeinfo->tm_hour, local_timeinfo->tm_min, local_timeinfo->tm_sec);
   }
   
-  _ntp_client.end();
+  ntp_client.end();
 }
 
 Timezone* MQTTBridge::createTimezoneFromString(const char* tz_string) {

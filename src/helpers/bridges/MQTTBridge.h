@@ -120,7 +120,6 @@ private:
   
   // NTP time sync
   WiFiUDP _ntp_udp;
-  NTPClient _ntp_client;
   unsigned long _last_ntp_sync;
   bool _ntp_synced;
   

@@ -13,6 +13,8 @@
 #define ADVERT_LOC_SHARE      1
 #define ADVERT_LOC_PREFS      2
 
+extern uint8_t g_debug_noise_floor;
+
 struct NodePrefs { // persisted to file
   float airtime_factor;
   char node_name[32];
@@ -36,6 +38,7 @@ struct NodePrefs { // persisted to file
   uint8_t flood_max;
   uint8_t interference_threshold;
   uint8_t agc_reset_interval; // secs / 4
+
   // Bridge settings
   uint8_t bridge_enabled; // boolean
   uint16_t bridge_delay;  // milliseconds (default 500 ms)
@@ -43,16 +46,20 @@ struct NodePrefs { // persisted to file
   uint32_t bridge_baud;   // 9600, 19200, 38400, 57600, 115200 (default 115200)
   uint8_t bridge_channel; // 1-14 (ESP-NOW only)
   char bridge_secret[16]; // for XOR encryption of bridge packets (ESP-NOW only)
+
   // Power setting
   uint8_t powersaving_enabled; // boolean
+
   // Gps settings
   uint8_t gps_enabled;
   uint32_t gps_interval; // in seconds
   uint8_t advert_loc_policy;
+
   // Power setting
   uint32_t discovery_mod_timestamp;  // From upstream dev branch
   float adc_multiplier;  // From upstream dev branch
   char owner_info[120];
+
   // MQTT settings (stored separately in /mqtt_prefs, but kept here for backward compatibility)
   char mqtt_origin[32];     // Device name for MQTT topics
   char mqtt_iata[8];        // IATA code for MQTT topics
@@ -61,29 +68,30 @@ struct NodePrefs { // persisted to file
   uint8_t mqtt_raw_enabled;      // Enable raw messages
   uint8_t mqtt_tx_enabled;       // Enable TX packet uplinking
   uint32_t mqtt_status_interval; // Status publish interval (ms)
-  
+
   // WiFi settings
+  uint8_t wifi_ntp_enabled; // WiFi enable NTP
+  char wifi_ntp_server[32]; // WiFi NTP server (e.g. pool.ntp.org)
   char wifi_ssid[32];       // WiFi SSID
   char wifi_password[64];  // WiFi password
   uint8_t wifi_power_save; // WiFi power save mode: 0=min, 1=none, 2=max (default: 0=min)
-  
+
   // Timezone settings
-  char timezone_ntp_server[32]; // Timezone NTP server (e.g. pool.ntp.org)
   int8_t timezone_offset;   // Timezone offset in hours (-12 to +14) - fallback
   char timezone_string[32]; // Timezone string (e.g., "America/Los_Angeles")
-  
+
   // MQTT server settings
   char mqtt_server[64];     // MQTT server hostname
   uint16_t mqtt_port;       // MQTT server port
   char mqtt_username[32];   // MQTT username
   char mqtt_password[64];   // MQTT password
-  
+
   // Let's Mesh Analyzer settings
   uint8_t mqtt_analyzer_us_enabled; // Enable US analyzer server
   uint8_t mqtt_analyzer_eu_enabled; // Enable EU analyzer server
   char mqtt_owner_public_key[65]; // Owner public key (hex string, same length as repeater public key)
   char mqtt_email[64]; // Owner email address for matching nodes with owners
-  
+
   // Remote serial commands via MQTT
   uint8_t mqtt_remote_enabled;      // Enable remote control (default: 0 = off)
   uint8_t mqtt_use_acl;             // Use ACL admin list (default: 1 = on)
@@ -178,18 +186,15 @@ class CommonCLI {
   SensorManager* _sensors;
   ClientACL* _acl;
   char tmp[PRV_KEY_SIZE*2 + 4];
-#ifdef WITH_MQTT_BRIDGE
-  MQTTPrefs _mqtt_prefs;
-#endif
 
   mesh::RTCClock* getRTCClock() { return _rtc; }
   void savePrefs();
   void loadPrefsInt(FILESYSTEM* _fs, const char* filename);
+  void loadPrefsJson(FILESYSTEM *_fs);
 #ifdef WITH_MQTT_BRIDGE
+  void setMQTTPrefsDefaults();
   void loadMQTTPrefs(FILESYSTEM* fs);
-  void saveMQTTPrefs(FILESYSTEM* fs);
-  void syncMQTTPrefsToNodePrefs();
-  void syncNodePrefsToMQTTPrefs();
+  void syncMQTTPrefsToNodePrefs(MQTTPrefs *mqtt_prefs);
 #endif
 
 public:

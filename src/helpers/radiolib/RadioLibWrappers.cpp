@@ -13,6 +13,8 @@
 
 static volatile uint8_t state = STATE_IDLE;
 
+uint8_t g_debug_noise_floor = 0;
+
 // this function is called when a complete packet
 // is transmitted by the module
 static 
@@ -78,7 +80,9 @@ void RadioLibWrapper::loop() {
     }
     _floor_sample_sum = 0;
 
-    MESH_DEBUG_PRINTLN("RadioLibWrapper: noise_floor = %d", (int)_noise_floor);
+    if (g_debug_noise_floor) {
+        MESH_DEBUG_PRINTLN("RadioLibWrapper: noise_floor = %d", (int)_noise_floor);
+    }
   }
 }
 
