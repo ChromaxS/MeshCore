@@ -484,166 +484,109 @@ void CommonCLI::loadPrefsJson(FILESYSTEM *fs) {
 void CommonCLI::savePrefs(FILESYSTEM* fs) {
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
   fs->remove("/com_prefs");
-  File file = fs->open("/com_prefs", FILE_O_WRITE);
   fs->remove("/prefs.json");
   File config_file = fs->open("/prefs.json", FILE_O_WRITE);
 #elif defined(RP2040_PLATFORM)
-  File file = fs->open("/com_prefs", "w");
   File config_file = fs->open("/prefs.json", "w");
 #else
-  File file = fs->open("/com_prefs", "w", true);
   File config_file = fs->open("/prefs.json", "w", true);
 #endif
-  if (file) {
-    // setup binary
-    uint8_t pad[8];
-    memset(pad, 0, sizeof(pad));
+  if (!config_file) {
+      MESH_DEBUG_PRINTLN("Failed to write configuration file: /prefs.json");
+      return;
+  }
 
-    // setup json
-    DynamicJsonDocument config_doc(1024);
+  // setup json
+  DynamicJsonDocument config_doc(1024);
 
-    JsonObject general = config_doc.createNestedObject("general");
-    general["node_name"] = _prefs->node_name;
-    general["node_lat"] = _prefs->node_lat;
-    general["node_lon"] = _prefs->node_lon;
-    general["password"] = _prefs->password;
-    general["guest_password"] = _prefs->guest_password;
-    general["powersaving_enabled"] = _prefs->powersaving_enabled ? true : false;
-    general["owner_info"] = _prefs->owner_info;
+  JsonObject general = config_doc.createNestedObject("general");
+  general["node_name"] = _prefs->node_name;
+  general["node_lat"] = _prefs->node_lat;
+  general["node_lon"] = _prefs->node_lon;
+  general["password"] = _prefs->password;
+  general["guest_password"] = _prefs->guest_password;
+  general["powersaving_enabled"] = _prefs->powersaving_enabled ? true : false;
+  general["owner_info"] = _prefs->owner_info;
 
-    JsonObject protocol = config_doc.createNestedObject("protocol");
-    protocol["airtime_factor"] = _prefs->airtime_factor;
-    protocol["disable_fwd"] = _prefs->disable_fwd ? true : false;
-    protocol["advert_interval"] = _prefs->advert_interval;
-    protocol["rx_delay_base"] = _prefs->rx_delay_base;
-    protocol["tx_delay_factor"] = _prefs->tx_delay_factor;
-    protocol["direct_tx_delay_factor"] = _prefs->direct_tx_delay_factor;
-    protocol["allow_read_only"] = _prefs->allow_read_only ? true : false;
-    protocol["multi_acks"] = _prefs->multi_acks ? true : false;
-    protocol["agc_reset_interval"] = _prefs->agc_reset_interval;
-    protocol["flood_max"] = _prefs->flood_max;
-    protocol["flood_advert_interval"] = _prefs->flood_advert_interval;
-    protocol["interference_threshold"] = _prefs->interference_threshold;
-    protocol["discovery_mod_timestamp"] = _prefs->discovery_mod_timestamp;
+  JsonObject protocol = config_doc.createNestedObject("protocol");
+  protocol["airtime_factor"] = _prefs->airtime_factor;
+  protocol["disable_fwd"] = _prefs->disable_fwd ? true : false;
+  protocol["advert_interval"] = _prefs->advert_interval;
+  protocol["rx_delay_base"] = _prefs->rx_delay_base;
+  protocol["tx_delay_factor"] = _prefs->tx_delay_factor;
+  protocol["direct_tx_delay_factor"] = _prefs->direct_tx_delay_factor;
+  protocol["allow_read_only"] = _prefs->allow_read_only ? true : false;
+  protocol["multi_acks"] = _prefs->multi_acks ? true : false;
+  protocol["agc_reset_interval"] = _prefs->agc_reset_interval;
+  protocol["flood_max"] = _prefs->flood_max;
+  protocol["flood_advert_interval"] = _prefs->flood_advert_interval;
+  protocol["interference_threshold"] = _prefs->interference_threshold;
+  protocol["discovery_mod_timestamp"] = _prefs->discovery_mod_timestamp;
 
-    JsonObject location = config_doc.createNestedObject("location");
-    location["enabled"] = _prefs->gps_enabled ? true : false;
-    location["interval"] = _prefs->gps_interval;
-    location["advert_loc_policy"] = _prefs->advert_loc_policy;
+  JsonObject location = config_doc.createNestedObject("location");
+  location["enabled"] = _prefs->gps_enabled ? true : false;
+  location["interval"] = _prefs->gps_interval;
+  location["advert_loc_policy"] = _prefs->advert_loc_policy;
 
-    JsonObject radio = config_doc.createNestedObject("radio");
-    radio["freq"] = _prefs->freq;
-    radio["tx_power_dbm"] = _prefs->tx_power_dbm;
-    radio["rx_delay_base"] = _prefs->rx_delay_base;
-    radio["spread_factor"] = _prefs->sf;
-    radio["coding_rate"] = _prefs->cr;
-    radio["bandwidth"] = _prefs->bw;
-    radio["adc_multiplier"] = _prefs->adc_multiplier;
+  JsonObject radio = config_doc.createNestedObject("radio");
+  radio["freq"] = _prefs->freq;
+  radio["tx_power_dbm"] = _prefs->tx_power_dbm;
+  radio["rx_delay_base"] = _prefs->rx_delay_base;
+  radio["spread_factor"] = _prefs->sf;
+  radio["coding_rate"] = _prefs->cr;
+  radio["bandwidth"] = _prefs->bw;
+  radio["adc_multiplier"] = _prefs->adc_multiplier;
 
-    JsonObject bridge = config_doc.createNestedObject("bridge");
-    bridge["enabled"] = _prefs->bridge_enabled ? true : false;
-    bridge["delay"] = _prefs->bridge_delay;
-    bridge["pkt_src"] = _prefs->bridge_pkt_src;
-    bridge["baud"] = _prefs->bridge_baud;
-    bridge["channel"] = _prefs->bridge_channel;
-    bridge["secret"] = _prefs->bridge_secret;
+  JsonObject bridge = config_doc.createNestedObject("bridge");
+  bridge["enabled"] = _prefs->bridge_enabled ? true : false;
+  bridge["delay"] = _prefs->bridge_delay;
+  bridge["pkt_src"] = _prefs->bridge_pkt_src;
+  bridge["baud"] = _prefs->bridge_baud;
+  bridge["channel"] = _prefs->bridge_channel;
+  bridge["secret"] = _prefs->bridge_secret;
 
 #ifdef WITH_MQTT_BRIDGE
-    JsonObject mqtt = config_doc.createNestedObject("mqtt");
-    mqtt["admin_public_key"] = _prefs->mqtt_admin_public_key;
-    mqtt["analyzer_us_enabled"] = _prefs->mqtt_analyzer_us_enabled ? true : false;
-    mqtt["analyzer_eu_enabled"] = _prefs->mqtt_analyzer_eu_enabled ? true : false;
-    mqtt["email"] = _prefs->mqtt_email;
-    mqtt["iata"] = _prefs->mqtt_iata;
-    mqtt["packets_enabled"] = _prefs->mqtt_packets_enabled ? true : false;
-    mqtt["origin"] = _prefs->mqtt_origin;
-    mqtt["owner_public_key"] = _prefs->mqtt_owner_public_key;
-    mqtt["password"] = _prefs->mqtt_password;
-    mqtt["port"] = _prefs->mqtt_port;
-    mqtt["raw_enabled"] = _prefs->mqtt_raw_enabled ? true : false;
-    mqtt["remote_enabled"] = _prefs->mqtt_remote_enabled ? true : false;
-    mqtt["status_enabled"] = _prefs->mqtt_status_enabled ? true : false;
-    mqtt["status_interval"] = _prefs->mqtt_status_interval;
-    mqtt["server"] = _prefs->mqtt_server;
-    mqtt["tx_enabled"] = _prefs->mqtt_tx_enabled ? true : false;
-    mqtt["use_acl"] = _prefs->mqtt_use_acl ? true : false;
-    mqtt["username"] = _prefs->mqtt_username;
+  JsonObject mqtt = config_doc.createNestedObject("mqtt");
+  mqtt["admin_public_key"] = _prefs->mqtt_admin_public_key;
+  mqtt["analyzer_us_enabled"] = _prefs->mqtt_analyzer_us_enabled ? true : false;
+  mqtt["analyzer_eu_enabled"] = _prefs->mqtt_analyzer_eu_enabled ? true : false;
+  mqtt["email"] = _prefs->mqtt_email;
+  mqtt["iata"] = _prefs->mqtt_iata;
+  mqtt["packets_enabled"] = _prefs->mqtt_packets_enabled ? true : false;
+  mqtt["origin"] = _prefs->mqtt_origin;
+  mqtt["owner_public_key"] = _prefs->mqtt_owner_public_key;
+  mqtt["password"] = _prefs->mqtt_password;
+  mqtt["port"] = _prefs->mqtt_port;
+  mqtt["raw_enabled"] = _prefs->mqtt_raw_enabled ? true : false;
+  mqtt["remote_enabled"] = _prefs->mqtt_remote_enabled ? true : false;
+  mqtt["status_enabled"] = _prefs->mqtt_status_enabled ? true : false;
+  mqtt["status_interval"] = _prefs->mqtt_status_interval;
+  mqtt["server"] = _prefs->mqtt_server;
+  mqtt["tx_enabled"] = _prefs->mqtt_tx_enabled ? true : false;
+  mqtt["use_acl"] = _prefs->mqtt_use_acl ? true : false;
+  mqtt["username"] = _prefs->mqtt_username;
 
-    JsonObject timezone = config_doc.createNestedObject("timezone");
-    timezone["offset"] = _prefs->timezone_offset;
-    timezone["string"] = _prefs->timezone_string;
+  JsonObject timezone = config_doc.createNestedObject("timezone");
+  timezone["offset"] = _prefs->timezone_offset;
+  timezone["string"] = _prefs->timezone_string;
 
-    JsonObject wifi = config_doc.createNestedObject("wifi");
-    wifi["ntp_enabled"] = _prefs->wifi_ntp_enabled ? true : false;
-    wifi["ntp_server"] = _prefs->wifi_ntp_server;
-    wifi["password"] = _prefs->wifi_password;
-    if (0 == _prefs->wifi_power_save) {
-        wifi["power_save"] = "min";
-    }else if (1 == _prefs->wifi_power_save) {
-        wifi["power_save"] = "none";
-    }else if (2 == _prefs->wifi_power_save) {
-        wifi["power_save"] = "max";
-    }
-    wifi["ssid"] = _prefs->wifi_ssid;
+  JsonObject wifi = config_doc.createNestedObject("wifi");
+  wifi["ntp_enabled"] = _prefs->wifi_ntp_enabled ? true : false;
+  wifi["ntp_server"] = _prefs->wifi_ntp_server;
+  wifi["password"] = _prefs->wifi_password;
+  if (0 == _prefs->wifi_power_save) {
+      wifi["power_save"] = "min";
+  }else if (1 == _prefs->wifi_power_save) {
+      wifi["power_save"] = "none";
+  }else if (2 == _prefs->wifi_power_save) {
+      wifi["power_save"] = "max";
+  }
+  wifi["ssid"] = _prefs->wifi_ssid;
 #endif
 
-    // write binary config
-    file.write((uint8_t *)&_prefs->airtime_factor, sizeof(_prefs->airtime_factor));    // 0
-    file.write((uint8_t *)&_prefs->node_name, sizeof(_prefs->node_name));              // 4
-    file.write(pad, 4);                                                                // 36
-    file.write((uint8_t *)&_prefs->node_lat, sizeof(_prefs->node_lat));                // 40
-    file.write((uint8_t *)&_prefs->node_lon, sizeof(_prefs->node_lon));                // 48
-    file.write((uint8_t *)&_prefs->password[0], sizeof(_prefs->password));             // 56
-    file.write((uint8_t *)&_prefs->freq, sizeof(_prefs->freq));                        // 72
-    file.write((uint8_t *)&_prefs->tx_power_dbm, sizeof(_prefs->tx_power_dbm));        // 76
-    file.write((uint8_t *)&_prefs->disable_fwd, sizeof(_prefs->disable_fwd));          // 77
-    file.write((uint8_t *)&_prefs->advert_interval, sizeof(_prefs->advert_interval));  // 78
-    file.write((uint8_t *)pad, 1);                                                     // 79  was 'unused'
-    file.write((uint8_t *)&_prefs->rx_delay_base, sizeof(_prefs->rx_delay_base));      // 80
-    file.write((uint8_t *)&_prefs->tx_delay_factor, sizeof(_prefs->tx_delay_factor));  // 84
-    file.write((uint8_t *)&_prefs->guest_password[0], sizeof(_prefs->guest_password)); // 88
-    file.write((uint8_t *)&_prefs->direct_tx_delay_factor, sizeof(_prefs->direct_tx_delay_factor)); // 104
-    file.write(pad, 4);                                                                             // 108
-    file.write((uint8_t *)&_prefs->sf, sizeof(_prefs->sf));                                         // 112
-    file.write((uint8_t *)&_prefs->cr, sizeof(_prefs->cr));                                         // 113
-    file.write((uint8_t *)&_prefs->allow_read_only, sizeof(_prefs->allow_read_only));               // 114
-    file.write((uint8_t *)&_prefs->multi_acks, sizeof(_prefs->multi_acks));                         // 115
-    file.write((uint8_t *)&_prefs->bw, sizeof(_prefs->bw));                                         // 116
-    file.write((uint8_t *)&_prefs->agc_reset_interval, sizeof(_prefs->agc_reset_interval));         // 120
-    file.write(pad, 3);                                                                             // 121
-    file.write((uint8_t *)&_prefs->flood_max, sizeof(_prefs->flood_max));                           // 124
-    file.write((uint8_t *)&_prefs->flood_advert_interval, sizeof(_prefs->flood_advert_interval));   // 125
-    file.write((uint8_t *)&_prefs->interference_threshold, sizeof(_prefs->interference_threshold)); // 126
-    file.write((uint8_t *)&_prefs->bridge_enabled, sizeof(_prefs->bridge_enabled));                 // 127
-    file.write((uint8_t *)&_prefs->bridge_delay, sizeof(_prefs->bridge_delay));                     // 128
-    file.write((uint8_t *)&_prefs->bridge_pkt_src, sizeof(_prefs->bridge_pkt_src));                 // 130
-    file.write((uint8_t *)&_prefs->bridge_baud, sizeof(_prefs->bridge_baud));                       // 131
-    file.write((uint8_t *)&_prefs->bridge_channel, sizeof(_prefs->bridge_channel));                 // 135
-    file.write((uint8_t *)&_prefs->bridge_secret, sizeof(_prefs->bridge_secret));                   // 136
-    file.write((uint8_t *)&_prefs->powersaving_enabled, sizeof(_prefs->powersaving_enabled));       // 152
-    file.write((uint8_t *)&_prefs->gps_enabled, sizeof(_prefs->gps_enabled));                       // 156
-    file.write((uint8_t *)&_prefs->gps_interval, sizeof(_prefs->gps_interval));                     // 157
-    file.write((uint8_t *)&_prefs->advert_loc_policy, sizeof(_prefs->advert_loc_policy));           // 161
-    file.write((uint8_t *)&_prefs->discovery_mod_timestamp, sizeof(_prefs->discovery_mod_timestamp)); // 162
-    file.write((uint8_t *)&_prefs->adc_multiplier, sizeof(_prefs->adc_multiplier));                 // 166
-    file.write((uint8_t *)_prefs->owner_info, sizeof(_prefs->owner_info));  // 170
-    // 290
-
-    /*
-    // MQTT settings - no longer saved here (stored in separate /mqtt_prefs file)
-    // Write zeros/padding to maintain file format compatibility
-    size_t mqtt_fields_size = getMQTTFieldsSize(_prefs);
-    memset(pad, 0, sizeof(pad));
-    size_t remaining = mqtt_fields_size;
-    while (remaining > 0) {
-      size_t to_write = remaining > sizeof(pad) ? sizeof(pad) : remaining;
-      file.write(pad, to_write);
-      remaining -= to_write;
-    }
-    */
-
-    file.close();
-  }
+  // write out //
+  serializeJson(config_doc, config_file);
+  config_file.close();
 }
 
 #ifdef WITH_MQTT_BRIDGE
