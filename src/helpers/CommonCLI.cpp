@@ -79,10 +79,11 @@ void CommonCLI::loadPrefs(FILESYSTEM* fs) {
   bool loaded_from_json = false;
   bool save_config = false;
   if (fs->exists("/prefs.json")) {
-    loadPrefs(fs);
+    loadPrefsJson(fs);
     loaded_from_json = true;
   }
   if (fs->exists("/com_prefs")) {
+    MESH_DEBUG_PRINTLN("Migrating from configuration file, /com_prefs, to: /prefs.json");
     if (!loaded_from_json) {
         // new filename //
         loadPrefsInt(fs, "/com_prefs");
@@ -91,6 +92,7 @@ void CommonCLI::loadPrefs(FILESYSTEM* fs) {
     // remove old //
     fs->remove("/node_prefs");
   } else if (fs->exists("/node_prefs")) {
+    MESH_DEBUG_PRINTLN("Migrating from configuration file, /node_prefs, to: /prefs.json");
     if (!loaded_from_json) {
         // old filename //
         loadPrefsInt(fs, "/node_prefs");
@@ -100,6 +102,7 @@ void CommonCLI::loadPrefs(FILESYSTEM* fs) {
     fs->remove("/node_prefs");
   } else {
     // file doesn't exist //
+    MESH_DEBUG_PRINTLN("No configuration file... setting defaults.");
     // set default mqtt settings //
     setMQTTPrefsDefaults();
     // set default bridge settings for fresh installs //
@@ -128,6 +131,7 @@ void CommonCLI::loadPrefs(FILESYSTEM* fs) {
 #endif
 
   if (save_config) {
+    MESH_DEBUG_PRINTLN("Finishing migration to: /prefs.json");
     savePrefs(fs);  // save to new filename
   }
 }
@@ -211,6 +215,8 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
 }
 
 void CommonCLI::loadPrefsJson(FILESYSTEM *fs) {
+    MESH_DEBUG_PRINTLN("Loading preferences from: /prefs.json");
+
     // Initialize with defaults first
     memset(_prefs, 0, sizeof(_prefs));
     setMQTTPrefsDefaults();
@@ -235,6 +241,131 @@ void CommonCLI::loadPrefsJson(FILESYSTEM *fs) {
     String content = file.readString();
     DynamicJsonDocument config_doc(content.length());
     deserializeJson(config_doc, content);
+
+    if (config_doc.containsKey("general")) {
+        if (config_doc["general"].containsKey("node_name")) {
+            String str = config_doc["general"]["node_name"].as<String>();
+            str.toCharArray(_prefs->node_name, sizeof(_prefs->node_name));
+        }
+        if (config_doc["general"].containsKey("node_lat")) {
+            _prefs->node_lat = config_doc["general"]["node_lat"].as<double>();
+        }
+        if (config_doc["general"].containsKey("node_lon")) {
+            _prefs->node_lon = config_doc["general"]["node_lon"].as<double>();
+        }
+        if (config_doc["general"].containsKey("password")) {
+            String str = config_doc["general"]["password"].as<String>();
+            str.toCharArray(_prefs->password, sizeof(_prefs->password));
+        }
+        if (config_doc["general"].containsKey("guest_password")) {
+            String str = config_doc["general"]["guest_password"].as<String>();
+            str.toCharArray(_prefs->guest_password, sizeof(_prefs->guest_password));
+        }
+        if (config_doc["general"].containsKey("powersaving_enabled")) {
+            _prefs->powersaving_enabled = config_doc["general"]["powersaving_enabled"].as<bool>() ? 1 : 0;
+        }
+        if (config_doc["general"].containsKey("owner_info")) {
+            String str = config_doc["general"]["owner_info"].as<String>();
+            str.toCharArray(_prefs->owner_info, sizeof(_prefs->owner_info));
+        }
+    }
+
+    if (config_doc.containsKey("protocol")) {
+        if (config_doc["protocol"].containsKey("airtime_factor")) {
+            _prefs->airtime_factor = config_doc["protocol"]["airtime_factor"].as<float>();
+        }
+        if (config_doc["protocol"].containsKey("disable_fwd")) {
+            _prefs->disable_fwd = config_doc["protocol"]["disable_fwd"].as<bool>() ? 1 : 0;
+        }
+        if (config_doc["protocol"].containsKey("advert_interval")) {
+            _prefs->advert_interval = config_doc["protocol"]["advert_interval"].as<uint8_t>();
+        }
+        if (config_doc["protocol"].containsKey("tx_delay_factor")) {
+            _prefs->tx_delay_factor = config_doc["protocol"]["tx_delay_factor"].as<float>();
+        }
+        if (config_doc["protocol"].containsKey("direct_tx_delay_factor")) {
+            _prefs->direct_tx_delay_factor = config_doc["protocol"]["direct_tx_delay_factor"].as<float>();
+        }
+        if (config_doc["protocol"].containsKey("allow_read_only")) {
+            _prefs->allow_read_only = config_doc["protocol"]["allow_read_only"].as<bool>() ? 1 : 0;
+        }
+        if (config_doc["protocol"].containsKey("multi_acks")) {
+            _prefs->multi_acks = config_doc["protocol"]["multi_acks"].as<bool>() ? 1 : 0;
+        }
+        if (config_doc["protocol"].containsKey("agc_reset_interval")) {
+            _prefs->agc_reset_interval = config_doc["protocol"]["agc_reset_interval"].as<uint8_t>();
+        }
+        if (config_doc["protocol"].containsKey("flood_max")) {
+            _prefs->flood_max = config_doc["protocol"]["flood_max"].as<uint8_t>();
+        }
+        if (config_doc["protocol"].containsKey("flood_advert_interval")) {
+            _prefs->flood_advert_interval = config_doc["protocol"]["flood_advert_interval"].as<uint8_t>();
+        }
+        if (config_doc["protocol"].containsKey("interference_threshold")) {
+            _prefs->interference_threshold = config_doc["protocol"]["interference_threshold"].as<uint8_t>();
+        }
+        if (config_doc["protocol"].containsKey("discovery_mod_timestamp")) {
+            _prefs->discovery_mod_timestamp = config_doc["protocol"]["discovery_mod_timestamp"].as<uint32_t>();
+        }
+    }
+
+    if (config_doc.containsKey("location")) {
+        if (config_doc["location"].containsKey("enabled")) {
+            _prefs->gps_enabled = config_doc["location"]["enabled"].as<bool>() ? 1 : 0;
+        }
+        if (config_doc["location"].containsKey("interval")) {
+            _prefs->gps_interval = config_doc["location"]["interval"].as<uint32_t>();
+        }
+        if (config_doc["location"].containsKey("advert_loc_policy")) {
+            _prefs->advert_loc_policy = config_doc["location"]["advert_loc_policy"].as<uint8_t>();
+        }
+    }
+
+    if (config_doc.containsKey("radio")) {
+        if (config_doc["radio"].containsKey("freq")) {
+            _prefs->freq = config_doc["radio"]["freq"].as<float>();
+        }
+        if (config_doc["radio"].containsKey("tx_power_dbm")) {
+            _prefs->tx_power_dbm = config_doc["radio"]["tx_power_dbm"].as<uint8_t>();
+        }
+        if (config_doc["radio"].containsKey("rx_delay_base")) {
+            _prefs->rx_delay_base = config_doc["radio"]["rx_delay_base"].as<float>();
+        }
+        if (config_doc["radio"].containsKey("spread_factor")) {
+            _prefs->sf = config_doc["radio"]["spread_factor"].as<uint8_t>();
+        }
+        if (config_doc["radio"].containsKey("coding_rate")) {
+            _prefs->cr = config_doc["radio"]["coding_rate"].as<uint8_t>();
+        }
+        if (config_doc["radio"].containsKey("bandwidth")) {
+            _prefs->bw = config_doc["radio"]["bandwidth"].as<float>();
+        }
+        if (config_doc["radio"].containsKey("adc_multiplier")) {
+            _prefs->adc_multiplier = config_doc["radio"]["adc_multiplier"].as<float>();
+        }
+    }
+
+    if (config_doc.containsKey("bridge")) {
+        if (config_doc["bridge"].containsKey("enabled")) {
+            _prefs->bridge_enabled = config_doc["bridge"]["enabled"].as<bool>() ? 1 : 0;
+        }
+        if (config_doc["bridge"].containsKey("delay")) {
+            _prefs->bridge_delay = config_doc["bridge"]["delay"].as<uint16_t>();
+        }
+        if (config_doc["bridge"].containsKey("pkt_src")) {
+            _prefs->bridge_pkt_src = config_doc["bridge"]["pkt_src"].as<uint8_t>();
+        }
+        if (config_doc["bridge"].containsKey("baud")) {
+            _prefs->bridge_baud = config_doc["bridge"]["baud"].as<uint32_t>();
+        }
+        if (config_doc["bridge"].containsKey("channel")) {
+            _prefs->bridge_channel = config_doc["bridge"]["channel"].as<uint8_t>();
+        }
+        if (config_doc["bridge"].containsKey("secret")) {
+            String str = config_doc["bridge"]["secret"].as<String>();
+            str.toCharArray(_prefs->bridge_secret, sizeof(_prefs->bridge_secret));
+        }
+    }
 
     if (config_doc.containsKey("mqtt")) {
         if (config_doc["mqtt"].containsKey("admin_public_key")) {
@@ -369,18 +500,18 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
     general["node_lon"] = _prefs->node_lon;
     general["password"] = _prefs->password;
     general["guest_password"] = _prefs->guest_password;
-    general["powersaving_enabled"] = _prefs->powersaving_enabled;
+    general["powersaving_enabled"] = _prefs->powersaving_enabled ? true : false;
     general["owner_info"] = _prefs->owner_info;
 
     JsonObject protocol = config_doc.createNestedObject("protocol");
     protocol["airtime_factor"] = _prefs->airtime_factor;
-    protocol["disable_fwd"] = _prefs->disable_fwd;
+    protocol["disable_fwd"] = _prefs->disable_fwd ? true : false;
     protocol["advert_interval"] = _prefs->advert_interval;
     protocol["rx_delay_base"] = _prefs->rx_delay_base;
     protocol["tx_delay_factor"] = _prefs->tx_delay_factor;
     protocol["direct_tx_delay_factor"] = _prefs->direct_tx_delay_factor;
-    protocol["allow_read_only"] = _prefs->allow_read_only;
-    protocol["multi_acks"] = _prefs->multi_acks;
+    protocol["allow_read_only"] = _prefs->allow_read_only ? true : false;
+    protocol["multi_acks"] = _prefs->multi_acks ? true : false;
     protocol["agc_reset_interval"] = _prefs->agc_reset_interval;
     protocol["flood_max"] = _prefs->flood_max;
     protocol["flood_advert_interval"] = _prefs->flood_advert_interval;
@@ -388,18 +519,18 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
     protocol["discovery_mod_timestamp"] = _prefs->discovery_mod_timestamp;
 
     JsonObject location = config_doc.createNestedObject("location");
-    location["enabled"] = _prefs->gps_enabled;
+    location["enabled"] = _prefs->gps_enabled ? true : false;
     location["interval"] = _prefs->gps_interval;
     location["advert_loc_policy"] = _prefs->advert_loc_policy;
 
     JsonObject radio = config_doc.createNestedObject("radio");
-    general["freq"] = _prefs->freq;
-    general["tx_power_dbm"] = _prefs->tx_power_dbm;
-    general["rx_delay_base"] = _prefs->rx_delay_base;
-    general["spread_factor"] = _prefs->sf;
-    general["coding_rate"] = _prefs->cr;
-    general["bandwidth"] = _prefs->bw;
-    general["adc_multiplier"] = _prefs->adc_multiplier;
+    radio["freq"] = _prefs->freq;
+    radio["tx_power_dbm"] = _prefs->tx_power_dbm;
+    radio["rx_delay_base"] = _prefs->rx_delay_base;
+    radio["spread_factor"] = _prefs->sf;
+    radio["coding_rate"] = _prefs->cr;
+    radio["bandwidth"] = _prefs->bw;
+    radio["adc_multiplier"] = _prefs->adc_multiplier;
 
     JsonObject bridge = config_doc.createNestedObject("bridge");
     bridge["enabled"] = _prefs->bridge_enabled ? true : false;
