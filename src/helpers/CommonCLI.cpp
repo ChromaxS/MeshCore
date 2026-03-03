@@ -83,24 +83,32 @@ void CommonCLI::loadPrefs(FILESYSTEM* fs) {
     loaded_from_json = true;
   }
   if (fs->exists("/com_prefs")) {
-    MESH_DEBUG_PRINTLN("Migrating from configuration file, /com_prefs, to: /prefs.json");
     if (!loaded_from_json) {
+        MESH_DEBUG_PRINTLN("Migrating from configuration file, /com_prefs, to: /prefs.json");
+
         // new filename //
         loadPrefsInt(fs, "/com_prefs");
         save_config = true;
+    } else {
+        MESH_DEBUG_PRINTLN("Deleting old configuration file: /com_prefs");
     }
     // remove old //
-    fs->remove("/node_prefs");
-  } else if (fs->exists("/node_prefs")) {
-    MESH_DEBUG_PRINTLN("Migrating from configuration file, /node_prefs, to: /prefs.json");
+    fs->remove("/com_prefs");
+  }
+  if (fs->exists("/node_prefs")) {
     if (!loaded_from_json) {
+        MESH_DEBUG_PRINTLN("Migrating from configuration file, /node_prefs, to: /prefs.json");
+
         // old filename //
         loadPrefsInt(fs, "/node_prefs");
         save_config = true;
+    } else {
+        MESH_DEBUG_PRINTLN("Deleting old configuration file: /node_prefs");
     }
     // remove old //
     fs->remove("/node_prefs");
-  } else {
+  }
+  if (!loaded_from_json and !save_config) {
     // file doesn't exist //
     MESH_DEBUG_PRINTLN("No configuration file... setting defaults.");
     // set default mqtt settings //
