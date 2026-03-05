@@ -178,7 +178,8 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     file.read((uint8_t *)&_prefs->bw, sizeof(_prefs->bw));                                         // 116
     file.read((uint8_t *)&_prefs->agc_reset_interval, sizeof(_prefs->agc_reset_interval));         // 120
     file.read((uint8_t *)&_prefs->path_hash_mode, sizeof(_prefs->path_hash_mode));                 // 121
-    file.read(pad, 2);                                                                             // 122
+    file.read((uint8_t *)&_prefs->loop_detect, sizeof(_prefs->loop_detect));                       // 122
+    file.read(pad, 1);                                                                             // 123
     file.read((uint8_t *)&_prefs->flood_max, sizeof(_prefs->flood_max));                           // 124
     file.read((uint8_t *)&_prefs->flood_advert_interval, sizeof(_prefs->flood_advert_interval));   // 125
     file.read((uint8_t *)&_prefs->interference_threshold, sizeof(_prefs->interference_threshold)); // 126
@@ -284,6 +285,18 @@ void CommonCLI::loadPrefsJson(FILESYSTEM *fs) {
         }
         if (config_doc["protocol"].containsKey("path_hash_mode")) {
             _prefs->path_hash_mode = config_doc["protocol"]["path_hash_mode"].as<uint8_t>();
+        }
+        if (config_doc["protocol"].containsKey("loop_detect")) {
+            String loop_detect = config_doc["protocol"]["path_hash_mode"].as<String>();
+            if (loop_detect == "OFF") {
+                _prefs->loop_detect = LOOP_DETECT_OFF;
+            } else if (loop_detect == "MINIMAL") {
+                _prefs->loop_detect = LOOP_DETECT_MINIMAL;
+            } else if (loop_detect == "MODERATE") {
+                _prefs->loop_detect = LOOP_DETECT_MODERATE;
+            } else if (loop_detect == "STRICT") {
+                _prefs->loop_detect = LOOP_DETECT_STRICT;
+            }
         }
         if (config_doc["protocol"].containsKey("flood_max")) {
             _prefs->flood_max = config_doc["protocol"]["flood_max"].as<uint8_t>();
@@ -529,6 +542,15 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
   protocol["multi_acks"] = _prefs->multi_acks ? true : false;
   protocol["agc_reset_interval"] = _prefs->agc_reset_interval;
   protocol["path_hash_mode"] = _prefs->path_hash_mode;
+  if (LOOP_DETECT_OFF == _prefs->loop_detect) {
+    protocol["loop_detect"] = "OFF";
+  } else if (LOOP_DETECT_MINIMAL == _prefs->loop_detect) {
+    protocol["loop_detect"] = "MINIMAL";
+  } else if (LOOP_DETECT_MODERATE == _prefs->loop_detect) {
+    protocol["loop_detect"] = "MODERATE";
+  } else if (LOOP_DETECT_STRICT == _prefs->loop_detect) {
+    protocol["loop_detect"] = "STRICT";
+  }
   protocol["flood_max"] = _prefs->flood_max;
   protocol["flood_advert_interval"] = _prefs->flood_advert_interval;
   protocol["interference_threshold"] = _prefs->interference_threshold;
@@ -1042,6 +1064,16 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         *reply = 0;  // set null terminator
       } else if (memcmp(config, "path.hash.mode", 14) == 0) {
         sprintf(reply, "> %d", (uint32_t)_prefs->path_hash_mode);
+      } else if (memcmp(config, "loop.detect", 11) == 0) {
+        if (_prefs->loop_detect == LOOP_DETECT_OFF) {
+          strcpy(reply, "> off");
+        } else if (_prefs->loop_detect == LOOP_DETECT_MINIMAL) {
+          strcpy(reply, "> minimal");
+        } else if (_prefs->loop_detect == LOOP_DETECT_MODERATE) {
+          strcpy(reply, "> moderate");
+        } else {
+          strcpy(reply, "> strict");
+        }
       } else if (memcmp(config, "tx", 2) == 0 && (config[2] == 0 || config[2] == ' ')) {
         sprintf(reply, "> %d", (int32_t) _prefs->tx_power_dbm);
       } else if (memcmp(config, "freq", 4) == 0) {
@@ -1412,6 +1444,26 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
           strcpy(reply, "OK");
         } else {
           strcpy(reply, "Error, must be 0,1, or 2");
+        }
+      } else if (memcmp(config, "loop.detect ", 12) == 0) {
+        config += 12;
+        uint8_t mode;
+        if (memcmp(config, "off", 3) == 0) {
+          mode = LOOP_DETECT_OFF;
+        } else if (memcmp(config, "minimal", 7) == 0) {
+          mode = LOOP_DETECT_MINIMAL;
+        } else if (memcmp(config, "moderate", 8) == 0) {
+          mode = LOOP_DETECT_MODERATE;
+        } else if (memcmp(config, "strict", 6) == 0) {
+          mode = LOOP_DETECT_STRICT;
+        } else {
+          mode = 0xFF;
+          strcpy(reply, "Error, must be: off, minimal, moderate, or strict");
+        }
+        if (mode != 0xFF) {
+          _prefs->loop_detect = mode;
+          savePrefs();
+          strcpy(reply, "OK");
         }
       } else if (memcmp(config, "tx ", 3) == 0) {
         if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;

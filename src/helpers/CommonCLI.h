@@ -13,7 +13,13 @@
 #define ADVERT_LOC_SHARE      1
 #define ADVERT_LOC_PREFS      2
 
+
 extern uint8_t g_debug_noise_floor;
+
+#define LOOP_DETECT_OFF       0
+#define LOOP_DETECT_MINIMAL   1
+#define LOOP_DETECT_MODERATE  2
+#define LOOP_DETECT_STRICT    3
 
 struct NodePrefs { // persisted to file
   float airtime_factor;
@@ -25,6 +31,7 @@ struct NodePrefs { // persisted to file
   uint8_t disable_fwd;
   uint8_t advert_interval;       // minutes / 2
   uint8_t path_hash_mode;        // which path mode to use when sending
+  uint8_t loop_detect;
   uint8_t flood_advert_interval; // hours
   float rx_delay_base;
   float tx_delay_factor;
