@@ -71,7 +71,7 @@ struct NodePrefs { // persisted to file
   uint32_t discovery_mod_timestamp;  // From upstream dev branch
   float adc_multiplier;  // From upstream dev branch
   char owner_info[120];
-  uint8_t sx126x_rx_boosted_gain;
+  uint8_t rx_boosted_gain; // power settings
 
   // MQTT settings (stored separately in /mqtt_prefs, but kept here for backward compatibility)
   char mqtt_origin[32];     // Device name for MQTT topics
