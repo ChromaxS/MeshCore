@@ -26,6 +26,7 @@ struct NodePrefs { // persisted to file
   char node_name[32];
   double node_lat, node_lon;
   char password[16];
+  char password_protected[32];
   float freq;
   int8_t tx_power_dbm;
   uint8_t disable_fwd;
@@ -212,6 +213,8 @@ public:
 
   void loadPrefs(FILESYSTEM* _fs);
   void savePrefs(FILESYSTEM* _fs);
+
+  bool allowProtectedCommand(uint32_t sender_timestamp);
   void handleCommand(uint32_t sender_timestamp, const char* command, char* reply);
   mesh::MainBoard* getBoard() { return _board; }
   uint8_t buildAdvertData(uint8_t node_type, uint8_t* app_data);
