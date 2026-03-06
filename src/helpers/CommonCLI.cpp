@@ -138,6 +138,8 @@ void CommonCLI::loadPrefs(FILESYSTEM* fs) {
   }
 #endif
 
+  sanitizePrefs();
+
   if (save_config) {
     MESH_DEBUG_PRINTLN("Finishing migration to: /prefs.json");
     savePrefs(fs);  // save to new filename
@@ -194,32 +196,6 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     file.read((uint8_t *)&_prefs->adc_multiplier, sizeof(_prefs->adc_multiplier)); // 166
     file.read((uint8_t *)_prefs->owner_info, sizeof(_prefs->owner_info));  // 170
     // 290
-
-    // sanitise bad pref values
-    _prefs->rx_delay_base = constrain(_prefs->rx_delay_base, 0, 20.0f);
-    _prefs->tx_delay_factor = constrain(_prefs->tx_delay_factor, 0, 2.0f);
-    _prefs->direct_tx_delay_factor = constrain(_prefs->direct_tx_delay_factor, 0, 2.0f);
-    _prefs->airtime_factor = constrain(_prefs->airtime_factor, 0, 9.0f);
-    _prefs->freq = constrain(_prefs->freq, 400.0f, 2500.0f);
-    _prefs->bw = constrain(_prefs->bw, 7.8f, 500.0f);
-    _prefs->sf = constrain(_prefs->sf, 5, 12);
-    _prefs->cr = constrain(_prefs->cr, 5, 8);
-    _prefs->tx_power_dbm = constrain(_prefs->tx_power_dbm, -9, 30);
-    _prefs->multi_acks = constrain(_prefs->multi_acks, 0, 1);
-    _prefs->adc_multiplier = constrain(_prefs->adc_multiplier, 0.0f, 10.0f);
-    _prefs->path_hash_mode = constrain(_prefs->path_hash_mode, 0, 2);   // NOTE: mode 3 reserved for future
-
-    // sanitise bad bridge pref values
-    _prefs->bridge_enabled = constrain(_prefs->bridge_enabled, 0, 1);
-    _prefs->bridge_delay = constrain(_prefs->bridge_delay, 0, 10000);
-    _prefs->bridge_pkt_src = constrain(_prefs->bridge_pkt_src, 0, 1);
-    _prefs->bridge_baud = constrain(_prefs->bridge_baud, 9600, 115200);
-    _prefs->bridge_channel = constrain(_prefs->bridge_channel, 0, 14);
-
-    _prefs->powersaving_enabled = constrain(_prefs->powersaving_enabled, 0, 1);
-
-    _prefs->gps_enabled = constrain(_prefs->gps_enabled, 0, 1);
-    _prefs->advert_loc_policy = constrain(_prefs->advert_loc_policy, 0, 2);
 
     file.close();
   }
@@ -485,6 +461,34 @@ void CommonCLI::loadPrefsJson(FILESYSTEM *fs) {
     }
 
     file.close();
+}
+
+void CommonCLI::sanitizePrefs() {
+    // sanitise bad pref values
+    _prefs->rx_delay_base = constrain(_prefs->rx_delay_base, 0, 20.0f);
+    _prefs->tx_delay_factor = constrain(_prefs->tx_delay_factor, 0, 2.0f);
+    _prefs->direct_tx_delay_factor = constrain(_prefs->direct_tx_delay_factor, 0, 2.0f);
+    _prefs->airtime_factor = constrain(_prefs->airtime_factor, 0, 9.0f);
+    _prefs->freq = constrain(_prefs->freq, 400.0f, 2500.0f);
+    _prefs->bw = constrain(_prefs->bw, 7.8f, 500.0f);
+    _prefs->sf = constrain(_prefs->sf, 5, 12);
+    _prefs->cr = constrain(_prefs->cr, 5, 8);
+    _prefs->tx_power_dbm = constrain(_prefs->tx_power_dbm, -9, 30);
+    _prefs->multi_acks = constrain(_prefs->multi_acks, 0, 1);
+    _prefs->adc_multiplier = constrain(_prefs->adc_multiplier, 0.0f, 10.0f);
+    _prefs->path_hash_mode = constrain(_prefs->path_hash_mode, 0, 2);   // NOTE: mode 3 reserved for future
+
+    // sanitise bad bridge pref values
+    _prefs->bridge_enabled = constrain(_prefs->bridge_enabled, 0, 1);
+    _prefs->bridge_delay = constrain(_prefs->bridge_delay, 0, 10000);
+    _prefs->bridge_pkt_src = constrain(_prefs->bridge_pkt_src, 0, 1);
+    _prefs->bridge_baud = constrain(_prefs->bridge_baud, 9600, 115200);
+    _prefs->bridge_channel = constrain(_prefs->bridge_channel, 0, 14);
+
+    _prefs->powersaving_enabled = constrain(_prefs->powersaving_enabled, 0, 1);
+
+    _prefs->gps_enabled = constrain(_prefs->gps_enabled, 0, 1);
+    _prefs->advert_loc_policy = constrain(_prefs->advert_loc_policy, 0, 2);
 }
 
 void CommonCLI::savePrefs(FILESYSTEM* fs) {

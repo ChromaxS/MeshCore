@@ -197,6 +197,7 @@ class CommonCLI {
   void loadMQTTPrefs(FILESYSTEM* fs);
   void syncMQTTPrefsToNodePrefs(MQTTPrefs *mqtt_prefs);
 #endif
+    void sanitizePrefs();
 
 public:
   CommonCLI(mesh::MainBoard& board, mesh::RTCClock& rtc, SensorManager& sensors, ClientACL& acl, NodePrefs* prefs, CommonCLICallbacks* callbacks)
