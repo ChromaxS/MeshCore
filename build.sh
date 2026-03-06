@@ -47,6 +47,8 @@ $ sh build.sh build-firmware RAK_4631_repeater
 EOF
 }
 
+[ -z "${BUILD_JOBS:-}" ] && BUILD_JOBS="$(grep processor /proc/cpuinfo | wc -l)"
+
 # get a list of pio env names that start with "env:"
 get_pio_envs() {
   pio project config | grep 'env:' | sed 's/env://'
@@ -147,7 +149,7 @@ build_firmware() {
   disable_debug_flags
 
   # build firmware target
-  pio run -e $1
+  pio run -e $1 --jobs $BUILD_JOBS
 
   # build merge-bin for esp32 fresh install, copy .bins to out folder (e.g: Heltec_v3_room_server-v1.0.0-SHA.bin)
   if [ "$ENV_PLATFORM" == "ESP32_PLATFORM" ]; then
