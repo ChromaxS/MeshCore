@@ -445,7 +445,7 @@ itself to disable.
 
 ---
 
-### View or change this node's avert path hash size
+#### View or change this node's advert path hash size
 **Usage:**
 - `get path.hash.mode`
 - `set path.hash.mode <value>`
