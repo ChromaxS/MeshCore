@@ -462,7 +462,7 @@ itself to disable.
 
 ---
 
-### View or change this node's loop detection 
+#### View or change this node's loop detection
 **Usage:**
 - `get loop.detect`
 - `set loop.detect <state>`
