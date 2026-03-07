@@ -992,12 +992,6 @@ doesn't pollute companions, letsmesh analyzers, etc.
 
 ---
 
-#### View the bridge source
-**Usage:**
-- `get bridge.source`
-
----
-
 #### Add a delay to packets routed through this bridge
 **Usage:**
 - `get bridge.delay`
