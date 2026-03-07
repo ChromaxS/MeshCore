@@ -2,6 +2,31 @@
 
 MeshCore is a lightweight, portable C++ library that enables multi-hop packet routing for embedded projects using LoRa and other packet radios. It is designed for developers who want to create resilient, decentralized communication networks that work without the internet.
 
+## Chro Fork
+
+This is a fork of the MeshCore repository with the observer firmware patches from: https://github.com/agessaman/MeshCore.git
+
+There are several changes here including:
+- JSON configuration files
+- protected command mode that allows remote admin with a password
+- improvements to command line handling
+
+## Chro Planned
+
+### Edge of network drop off due to one path in/out and unreliable packet delivery
+
+Rrepeaters during times of low airtime do some heartbeats and analysis of immediate neighbors so they can automatically repeat a second time or three when it doesn't hear a neighbor it knows has trouble receiving from it.
+
+The idea being that edge of the network tends to not have any other routes to the edge, so if a packet drops one or two nodes from the edge, they're just left out.
+
+### Diagnostic and auto tuning of LoRA
+
+We could use that heartbeat for diagnostics too, including some automated settings checks like "does CR5 or 7 make sense at 2pm vs 2am" and "do I REALLY need 0.3watts of transmit at 1am..."
+
+### Congestion route optimization
+
+This is about congestion in more dense areas by using techniques from the networking world, like ethernet switch bonds, where multiple nodes are in cooperation and know that there's multiple, working paths, so instead of having several repeaters all repeat, they take turns and/or divide the repeat decisions. This reduces airtime noise for everyone, but keeps reliability up, ie the repeaters would fallback to rebroadcasting if one of their coop nodes failed to rebroadcast.
+
 ## 🔍 What is MeshCore?
 
 MeshCore now supports a range of LoRa devices, allowing for easy flashing without the need to compile firmware manually. Users can flash a pre-built binary using tools like Adafruit ESPTool and interact with the network through a serial console.
