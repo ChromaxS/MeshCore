@@ -9,6 +9,9 @@
 #include <esp_wifi.h>
 #endif
 
+#define REPLY_SILENT_RUNNING_ON   "Silent Running (ignores discovery requests and sends no advertisements)"
+#define REPLY_SILENT_RUNNING_OFF  "Regular Running"
+
 static int gl_allow_protected_over_remote = 0;
 
 extern char g_serial_command[];
@@ -420,6 +423,9 @@ void CommonCLI::loadPrefsJson(FILESYSTEM *fs) {
         if (config_doc["protocol"].containsKey("disable_fwd")) {
             _prefs->disable_fwd = config_doc["protocol"]["disable_fwd"].as<bool>() ? 1 : 0;
         }
+        if (config_doc["protocol"].containsKey("silent_running")) {
+            _prefs->silent_running = config_doc["protocol"]["silent_running"].as<bool>();
+        }
         if (config_doc["protocol"].containsKey("advert_interval")) {
             _prefs->advert_interval = config_doc["protocol"]["advert_interval"].as<uint8_t>();
         }
@@ -697,6 +703,7 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
   JsonObject protocol = config_doc.createNestedObject("protocol");
   protocol["airtime_factor"] = _prefs->airtime_factor;
   protocol["disable_fwd"] = _prefs->disable_fwd ? true : false;
+  protocol["silent_running"] = _prefs->silent_running ? true : false;
   protocol["advert_interval"] = _prefs->advert_interval;
   protocol["rx_delay_base"] = _prefs->rx_delay_base;
   protocol["tx_delay_factor"] = _prefs->tx_delay_factor;
@@ -1286,6 +1293,14 @@ handleCommand_protected_cleared:
         sprintf(reply, "> %s", _prefs->allow_read_only ? "on" : "off");
       } else if (strcmp(config, "flood.advert.interval") == 0) {
         sprintf(reply, "> %d", ((uint32_t) _prefs->flood_advert_interval));
+      } else if (strcmp(config, "silent") == 0) {
+          if (_prefs->silent_running) {
+              strcpy(reply, "> ");
+              strcpy(reply, REPLY_SILENT_RUNNING_ON);
+          } else {
+              strcpy(reply, "> ");
+              strcat(reply, REPLY_SILENT_RUNNING_OFF);
+          }
       } else if (strcmp(config, "advert.interval") == 0) {
         sprintf(reply, "> %d", ((uint32_t) _prefs->advert_interval) * 2);
       } else if (strcmp(config, "guest.password") == 0) {
@@ -1629,7 +1644,7 @@ handleCommandHelpClear:
       }
     } else if (strcmp(command, "disable") == 0) {
 handleCommandHelpDisable:
-      strcpy(reply, "Possible: bridge"
+      strcpy(reply, "Possible: bridge, silent"
 #ifdef WITH_MQTT_BRIDGE
         "mqtt: analyzer.eu, analyzer.us, packets, raw, status, tx,\n"
         "wifi: ntp, powersave"
@@ -1641,6 +1656,10 @@ handleCommandHelpDisable:
         if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
         _prefs->bridge_enabled = 0;
         goto handleCommandDisabledAndSave;
+    } else if (strcmp(config, "silent") == 0) {
+      if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+      _prefs->silent_running = 0;
+      goto handleCommandDisabledAndSave;
 #ifdef WITH_MQTT_BRIDGE
       } else if (strcmp(config, "mqtt.analyzer.eu") == 0) {
         if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
@@ -1728,6 +1747,15 @@ handleCommandHelpDisable:
           savePrefs();
           strcpy(reply, "OK");
         }
+      } else if (memcmp(config, "silent ", 7) == 0) {
+          if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+          _prefs->silent_running = strcmp(&config[7], "on") == 0;
+          if (_prefs->silent_running) {
+              strcpy(reply, "OK - Silent Running (ignores discovery requests and sends no advertisements)");
+          } else {
+handleCommandSilentCleared:
+              strcpy(reply, "OK - Regular Running");
+          }
       } else if (memcmp(config, "advert.interval ", 16) == 0) {
         if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
         int mins = _atoi(&config[16]);
@@ -1835,6 +1863,12 @@ handleCommandSetRadioSave:
         } else {
           strcpy(reply, "Error, cannot be negative");
         }
+      } else if (strcmp(config, "silent") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        _prefs->silent_running = 0;
+        goto handleCommandDisabledAndSave;
+        strcat(reply, "OK: ");
+        strcat(reply, REPLY_SILENT_RUNNING_OFF);
       } else if (memcmp(config, "txdelay ", 8) == 0) {
         if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
         float f = atof(&config[8]);
@@ -2373,7 +2407,7 @@ handleCommandHelpDebug:
     }
     return;
 handleCommandDenied:
-    sprintf(reply, "Denied protected command", tmp);
+    sprintf(reply, "Denied protected command");
     return;
 handleCommandClearedAndSave:
     savePrefs();

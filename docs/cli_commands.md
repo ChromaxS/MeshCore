@@ -928,6 +928,24 @@ region save
 
 ---
 
+### Silent Running
+It may be desirable to run a node that is mostly silent in that it does not respond
+to discovery requests nor does it send advertisements. This is for repeater nodes
+that may move around a lot, ie on a car, or in pop up locations. The node still
+relays and participates in the network, it just tries to remain discreet so it
+doesn't pollute companions, letsmesh analyzers, etc.
+
+**Usage:**
+- `disable silent`
+- `set silent <enabled>`
+
+**Parameters:**
+- `enabled`: on for on and off for off
+
+**Default:** off
+
+---
+
 ### Sensors (When sensor support is compiled in)
 
 #### View the list of sensors on this node

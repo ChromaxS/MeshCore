@@ -32,6 +32,7 @@ struct NodePrefs { // persisted to file
   float freq;
   int8_t tx_power_dbm;
   uint8_t disable_fwd;
+  uint8_t silent_running;        // ignores discovery requests and does not advertise
   uint8_t advert_interval;       // minutes / 2
   uint8_t path_hash_mode;        // which path mode to use when sending
   uint8_t loop_detect;

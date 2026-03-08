@@ -770,6 +770,11 @@ void MyMesh::onControlDataRecv(mesh::Packet* packet) {
   if (type == CTL_TYPE_NODE_DISCOVER_REQ && packet->payload_len >= 6
       && !_prefs.disable_fwd && discover_limiter.allow(rtc_clock.getCurrentTime())
   ) {
+    if (_prefs.silent_running) {
+      MESH_DEBUG_PRINTLN("silent running mode enabled -- ignoring discovery request");
+      return;
+    }
+
     int i = 1;
     uint8_t  filter = packet->payload[i++];
     uint32_t tag;
@@ -1345,6 +1350,9 @@ void MyMesh::loop() {
 
   mesh::Mesh::loop();
 
+  // do it with a goto so we can still merge upstream nicely //
+  if (!_prefs.silent_running) goto loop_skip_adverts;
+
   if (next_flood_advert && millisHasNowPassed(next_flood_advert)) {
     mesh::Packet *pkt = createSelfAdvert();
     if (pkt) sendFlood(pkt);
@@ -1357,6 +1365,8 @@ void MyMesh::loop() {
 
     updateAdvertTimer(); // schedule next local advert
   }
+
+loop_skip_adverts:
 
   if (set_radio_at && millisHasNowPassed(set_radio_at)) { // apply pending (temporary) radio params
     set_radio_at = 0;                                     // clear timer
