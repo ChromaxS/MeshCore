@@ -28,17 +28,23 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Usage:** 
 - `reboot`
 
+**Serial or Protected Mode Only:** Yes
+
 ---
 
 ### Reset the clock and reboot
 **Usage:**
 - `clkreboot`
 
+**Serial or Protected Mode Only:** Yes
+
 ---
 
 ### Sync the clock with the remote device
 **Usage:** 
 - `clock sync`
+
+**Serial or Protected Mode Only:** Yes
 
 ---
 
@@ -66,6 +72,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 ### Start an Over-The-Air (OTA) firmware update
 **Usage:**
 - `start ota`
+
+**Serial or Protected Mode Only:** Yes
 
 ---
 
@@ -134,22 +142,28 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 ### Begin capture of rx log to node storage
 **Usage:** `log start`
 
+**Serial or Protected Mode Only:** Yes
+
 ---
 
 ### End capture of rx log to node storage
 **Usage:** `log stop`
+
+**Serial or Protected Mode Only:** Yes
 
 ---
 
 ### Erase captured log
 **Usage:** `log erase`
 
+**Serial or Protected Mode Only:** Yes
+
 ---
 
 ### Print the captured log to the serial terminal
 **Usage:** `log`
 
-**Serial Only:** Yes
+**Serial or Protected Mode Only:** Yes
 
 ---
 
@@ -184,6 +198,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Default:** `869.525,250,11,5`
 
+**Serial Only:** Yes
+
 **Note:** Requires reboot to apply
 
 ---
@@ -199,6 +215,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Set by build flag:** `LORA_TX_POWER`
 
 **Default:** Varies by board
+
+**Serial or Protected Mode Only:** Setting only
 
 **Notes:** This setting only controls the power level of the LoRa chip. Some nodes have an additional power amplifier stage which increases the total output. Refer to the node's manual for the correct setting to use. **Setting a value too high may violate the laws in your country.**
 
@@ -217,6 +235,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Note:** This is not saved to preferences and will clear on reboot
 
+**Serial Only:** Yes
+
 ---
 
 #### View or change this node's frequency
@@ -230,7 +250,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Default:** `869.525`
 
 **Note:** Requires reboot to apply
-**Serial Only:** `set freq <frequency>`
+
+**Serial Only:** Yes for setting.
 
 ### System
 
@@ -262,6 +283,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Parameters:**
 - `degrees`: Latitude in degrees
 
+**Serial or Protected Mode Only:** Yes
+
 ---
 
 #### View or change this node's longitude
@@ -275,6 +298,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Parameters:**
 - `degrees`: Longitude in degrees
+
+**Serial or Protected Mode Only:** Yes
 
 ---
 
@@ -292,6 +317,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Note:** Requires reboot to take effect after setting
 
+**Serial Only:** Changing the private key is only allowed via serial.
+
 ---
 
 #### Change this node's admin password
@@ -304,6 +331,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Set by build flag:** `ADMIN_PASSWORD`
 
 **Default:** `password`
+
+**Serial Only:** Yes
 
 **Note:** Command reply echoes the updated password for confirmation.
 
@@ -323,6 +352,27 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Default:** `<blank>`
 
+**Serial or Protected Mode Only:** Setting only
+
+---
+
+#### Set this node's protected password
+This enables a second-level password that protects most administrative commands
+and allows access to most serial only commands by remote. It's disabled by default.
+
+Use `allow.protected <password>` to access protected mode. Use `allow.protected` by
+itself to disable.
+
+**Usage:**
+- `set password.protected <password>
+
+**Parameters:**
+- `password`: Protected password
+
+**Default:** `<blank>`
+
+**Serial Only:** Yes
+
 ---
 
 #### View or change this node's owner info
@@ -334,6 +384,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `text`: Owner information text
 
 **Default:** `<blank>`
+
+**Serial Only:** Yes
 
 **Note:** `|` characters are translated to newlines
 
@@ -365,6 +417,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Default:** `on`
 
+**Serial or Protected Mode Only:** Setting only
+
 **Note:** When enabled, device enters sleep mode between radio transmissions
 
 ---
@@ -380,6 +434,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
   - `state`: `on`|`off`
 
 **Default:** `on`
+
+**Serial or Protected Mode Only:** Setting only
 
 ---
 
@@ -405,6 +461,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Default:** `0.2`
 
+**Serial or Protected Mode Only:** Setting only
+
 ---
 
 #### [Experimental] View or change the processing delay for received traffic
@@ -416,6 +474,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `value`: Receive delay base (0-20)
 
 **Default:** `0.0`
+
+**Serial or Protected Mode Only:** Yes
 
 ---
 
@@ -429,6 +489,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Default:** `1.0`
 
+**Serial or Protected Mode Only:** Setting only
+
 ---
 
 #### View or change the local interference threshold
@@ -440,6 +502,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `value`: Interference threshold value
 
 **Default:** `0.0`
+
+**Serial or Protected Mode Only:** Setting only
 
 ---
 
@@ -453,6 +517,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Default:** `0.0`
 
+**Serial or Protected Mode Only:** Setting only
+
 ---
 
 #### Enable or disable Multi-Acks support
@@ -464,6 +530,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `state`: `0` (disable) or `1` (enable)
 
 **Default:** `0`
+
+**Serial or Protected Mode Only:** Setting only
 
 ---
 
@@ -477,6 +545,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Default:** `12` (Repeater) - `0` (Sensor)
 
+**Serial or Protected Mode Only:** Setting only
+
 ---
 
 #### View or change the zero-hop advert interval
@@ -489,6 +559,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Default:** `0`
 
+**Serial or Protected Mode Only:** Setting only
+
 ---
 
 #### Limit the number of hops for a flood message
@@ -500,6 +572,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `value`: Maximum flood hop count (0-64)
 
 **Default:** `64`
+
+**Serial or Protected Mode Only:** Setting only
 
 ---
 
@@ -539,6 +613,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Default:** `off`
 
+**Serial or Protected Mode Only:** Setting only
+
 ---
 
 ### Region Management (v1.10.+)
@@ -550,6 +626,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Parameters:**
 - `name`: A name of a region. `*` represents the wildcard region
+
+**Serial Only:** Yes
 
 **Note:** `flood_flag`: Optional `F` to allow flooding
 
@@ -748,6 +826,8 @@ region save
 
 **Default:** `off`
 
+**Serial or Protected Mode Only:** Setting only
+
 **Note:** Output format: `{status}, {fix}, {sat count}` (when enabled)
 
 ---
@@ -761,6 +841,8 @@ region save
 #### Set this node's location based on the GPS coordinates
 **Usage:** 
 - `gps setloc`
+
+**Serial or Protected Mode Only:** Setting only
 
 ---
 
@@ -776,6 +858,8 @@ region save
   - `prefs`: location stored in node's lat and lon settings
 
 **Default:** `prefs`
+
+**Serial or Protected Mode Only:** Setting only
 
 ---
 
@@ -814,6 +898,8 @@ region save
 
 **Default:** `off`
 
+**Serial or Protected Mode Only:** Setting only
+
 ---
 
 #### View the bridge source
@@ -846,6 +932,8 @@ region save
 
 **Default:** `tx`
 
+**Serial or Protected Mode Only:** Setting only
+
 ---
 
 #### View or change the speed of the bridge (RS-232 only)
@@ -858,6 +946,8 @@ region save
 
 **Default:** `115200`
 
+**Serial or Protected Mode Only:** Setting only
+
 ---
 
 #### View or change the channel used for bridging (ESPNow only)
@@ -867,6 +957,8 @@ region save
 
 **Parameters:**
 - `channel`: Channel number (1-14)
+
+**Serial or Protected Mode Only:** Setting only
 
 ---
 
@@ -880,4 +972,246 @@ region save
 
 **Default:** Varies by board
 
+**Serial or Protected Mode Only:** Yes
+
+## Observer
+A repeater can be setup to directly report into the letsmesh analyzer by configuring these settings:
+- mqtt.iata
+- mqtt.email
+- mqtt.owner
+- mqtt.analyzer.us and/or mqtt.analyzer.eu
+- mqtt.tx
+
+You must configure WiFi and the MQTT basics like IATA code. A reboot is necessary for several of these
+configuration values when changed.
+
+### Enable MQTT US analysis
+**Usage:**
+- `get mqtt.analyzer.us`
+- `set mqtt.analyzer.us <enabled>`
+
+**Parameters:**
+- `enabled`: on for US analysis and off for disabled.
+
+**Default:** on
+
+**Serial or Protected Mode Only:** Setting only
+
 ---
+
+### Enable MQTT EU analysis
+**Usage:**
+- `get mqtt.analyzer.eu`
+- `set mqtt.analyzer.eu <enabled>`
+
+**Parameters:**
+- `enabled`: on for EU analysis and off for disabled.
+
+**Default:** on
+
+**Serial or Protected Mode Only:** Setting only
+
+---
+
+### Set MQTT IATA (airport codes) region
+**Usage:**
+- `get mqtt.iata`
+- `set mqtt.iata <iata_code>`
+
+**Parameters:**
+- `iata_code`: Regions by [IATA code](https://www.iata.org/en/publications/directories/code-search/).
+
+**Default:** None
+
+**Serial or Protected Mode Only:** Setting only
+
+---
+
+### Set MQTT server
+NOTE: Setting this will potentially break compatibility with the letsmesh servers! Set this
+      only if you have a custom MQTT observer instance!
+
+**Usage:**
+- `get mqtt.server`
+- `set mqtt.server <server>`
+
+**Parameters:**
+- `server`: Override the MQTT server to a custom one.
+
+**Default:** None
+
+**Serial or Protected Mode Only:** Yes
+
+---
+
+### Set MQTT port
+NOTE: Setting this will potentially break compatibility with the letsmesh servers! Set this
+      only if you have a custom MQTT observer instance!
+
+**Usage:**
+- `get mqtt.port`
+- `set mqtt.port <port>`
+
+**Parameters:**
+- `port`: Override the MQTT port to a custom one.
+
+**Default:** None
+
+**Serial or Protected Mode Only:** Yes
+
+---
+
+### Set MQTT username
+NOTE: Setting this will potentially break compatibility with the letsmesh servers! Set this
+      only if you have a custom MQTT observer instance!
+
+**Usage:**
+- `get mqtt.username`
+- `set mqtt.username <username>`
+
+**Parameters:**
+- `username`: Override the MQTT username to a custom one.
+
+**Default:** None
+
+**Serial or Protected Mode Only:** Yes
+
+---
+
+### Set MQTT password
+NOTE: Setting this will potentially break compatibility with the letsmesh servers! Set this
+      only if you have a custom MQTT observer instance!
+**Usage:**
+- `get mqtt.username`
+- `set mqtt.username <password>`
+
+**Parameters:**
+- `password`: Override the MQTT password to a custom one.
+
+**Default:** None
+
+**Serial or Protected Mode Only:** Yes
+
+---
+
+### Set MQTT Email
+**Usage:**
+- `get mqtt.email`
+- `set mqtt.email <email>`
+
+**Parameters:**
+- `email`: Your letsmesh forum email address
+
+**Default:** None
+
+**Serial or Protected Mode Only:** Yes
+
+---
+
+### Set MQTT Owner
+**Usage:**
+- `mqtt.owner`
+- `mqtt.owner <pubkey>`
+
+**Parameters:**
+- `pubkey`: Companion node of the owner/administrator of the observer.
+
+**Default:** None
+
+**Serial or Protected Only:** Setting only.
+
+### Set MQTT enabled
+**Usage:**
+- `get mqtt.tx`
+- `set mqtt.tx <enabled>`
+
+**Parameters:**
+- `enabled`: on for sending observer info and off for disabled.
+
+**Default:** off
+
+**Serial or Protected Mode Only:** Setting only
+
+### Set timezone of repeater
+**Usage:**
+- `get timezone.string`
+- `set timezone.string <timezone>`
+
+**Parameters:**
+- `timezone`: Timezone in [IANA format](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) (ie America/Los_Angeles)
+
+**Default:** None
+
+---
+
+### Set clock by NTP
+**Usage:**
+- `get wifi.ntp`
+- `set wifi.ntp.enabled <enabled>`
+
+**Parameters:**
+- `enabled`: on for enabled and off for disabled
+
+**Default:** off
+
+**Serial Only:** Yes
+
+---
+
+### Set NTP server
+**Usage:**
+- `get wifi.ntp.server`
+- `set wifi.ntp.server <server>`
+
+**Parameters:**
+- `server`: The NTP server to use.
+
+**Default:** pool.ntp.org
+
+**Serial Only:** Yes
+
+---
+
+### WiFi Status
+Gets the WiFi status. In protected mode the SSID is hidden.
+
+**Usage:**
+- `wifi.status`
+
+**Serial or Protected Only:** Partially, in non-protected/serial mode the SSID is hidden.
+
+### WiFi SSID
+
+**Usage:**
+- `get wifi.ssid`
+- `set wifi.ssid <ssid>`
+
+**Parameters:**
+- `ssid`: The SSID of the WiFi network to join.
+
+**Default:** None
+
+---
+
+### WiFi Password
+
+**Usage:**
+- `get wifi.pwd`
+- `set wifi.pwd <pwd>`
+
+**Parameters:**
+- `pwd`: The password of the WiFi network.
+
+**Default:** None
+
+## Debug
+
+### Emit noise floor to console
+Every second emit the noise floor reading.
+
+**Usage:**
+- `debug noise_floor`
+
+**Default:** None
+
+**Serial Only:** Yes

@@ -1220,8 +1220,6 @@ handleCommand_protected_cleared:
               } else if (strcmp(config, "mqtt.analyzer.eu") == 0) {
                 sprintf(reply, "> %s", _prefs->mqtt_analyzer_eu_enabled ? "on" : "off");
               } else if (strcmp(config, "mqtt.owner") == 0) {  // from serial command line only
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-
                 if (_prefs->mqtt_owner_public_key[0] != '\0') {
                   sprintf(reply, "> %s", _prefs->mqtt_owner_public_key);
                 } else {
@@ -1875,6 +1873,7 @@ handleCommand_protected_cleared:
           strcpy(reply, "error");
         }
     } else if (memcmp(command, "gps advert ", 11) == 0) {
+      if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
       if (strcmp(&command[11], "none") == 0) {
         _prefs->advert_loc_policy = ADVERT_LOC_NONE;
         savePrefs();
