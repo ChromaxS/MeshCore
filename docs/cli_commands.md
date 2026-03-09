@@ -69,6 +69,12 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 ---
 
+### Send a zero-hop advert
+**Usage:**
+- `advert.zerohop`
+
+---
+
 ### Start an Over-The-Air (OTA) firmware update
 **Usage:**
 - `start ota`
@@ -256,6 +262,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Default:** `869.525`
 
 **Note:** Requires reboot to apply
+**Serial Only:** `set freq <frequency>`
 
 **Serial Only:** Yes for setting.
 
@@ -319,7 +326,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Serial Only:**
 - `get prv.key`: Yes
-- `set prv.key`: No
+- `set prv.key`: Yes
 
 **Note:** Requires reboot to take effect after setting
 
@@ -413,13 +420,25 @@ itself to disable.
 
 ---
 
+#### View this node's public key
+**Usage:** `get public.key`
+
+---
+
+#### View this node's configured role
+**Usage:** `get role`
+
+---
+
 #### View or change this node's power saving flag (Repeater Only)
 **Usage:**
-- `powersaving <state>`
 - `powersaving`
+- `powersaving on`
+- `powersaving off`
 
 **Parameters:** 
-- `state`: `on`|`off` 
+- `on`: enable power saving
+- `off`: disable power saving
 
 **Default:** `on`
 
@@ -934,6 +953,11 @@ region save
 
 ### Bridge (When bridge support is compiled in)
 
+#### View the compiled bridge type
+**Usage:** `get bridge.type`
+
+---
+
 #### View or change the bridge enabled flag
 **Usage:**
 - `disable bridge`
@@ -974,10 +998,10 @@ region save
 
 **Parameters:**
 - `source`: 
-  - `rx`: bridges received packets
-  - `tx`: bridges transmitted packets
+  - `logRx`: bridges received packets
+  - `logTx`: bridges transmitted packets
 
-**Default:** `tx`
+**Default:** `logTx`
 
 **Serial or Protected Mode Only:** Setting only
 
@@ -1015,7 +1039,7 @@ region save
 - `set bridge.secret <secret>`
 
 **Parameters:**
-- `secret`: 16-character encryption secret
+- `secret`: ESP-NOW bridge secret, up to 15 characters
 
 **Default:** Varies by board
 
@@ -1274,3 +1298,34 @@ Every second emit the noise floor reading.
 **Default:** None
 
 **Serial Only:** Yes
+
+#### View the bootloader version (nRF52 only)
+**Usage:** `get bootloader.ver`
+
+---
+
+#### View power management support
+**Usage:** `get pwrmgt.support`
+
+---
+
+#### View the current power source
+**Usage:** `get pwrmgt.source`
+
+**Note:** Returns an error on boards without power management support.
+
+---
+
+#### View the boot reset and shutdown reasons
+**Usage:** `get pwrmgt.bootreason`
+
+**Note:** Returns an error on boards without power management support.
+
+---
+
+#### View the boot voltage
+**Usage:** `get pwrmgt.bootmv`
+
+**Note:** Returns an error on boards without power management support.
+
+---
