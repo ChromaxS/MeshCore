@@ -1195,7 +1195,13 @@ void MyMesh::handleCommand(uint32_t sender_timestamp, char *command, char *reply
   }
 
   // handle ACL related commands
-  if (memcmp(command, "setperm ", 8) == 0) {   // format:  setperm {pubkey-hex} {permissions-int8}
+  if (strcmp(command, "regen.prv.key") == 0) {
+    if (0 != sender_timestamp) goto handleCommandDenied;
+    auto new_id = radio_new_identity();
+    saveIdentity(new_id);
+    strcpy(reply, "OK, reboot to apply! New pubkey: ");
+    mesh::Utils::toHex(&reply[33], new_id.pub_key, PUB_KEY_SIZE);
+  } else if (memcmp(command, "setperm ", 8) == 0) {   // format:  setperm {pubkey-hex} {permissions-int8}
     char* hex = &command[8];
     char* sp = strchr(hex, ' ');   // look for separator char
     if (sp == NULL) {
