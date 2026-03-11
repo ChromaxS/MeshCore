@@ -1359,6 +1359,9 @@ void MyMesh::handleCommand(uint32_t sender_timestamp, char *command, char *reply
   } else{
     _cli.handleCommand(sender_timestamp, command, reply);  // common CLI commands
   }
+  return;
+handleCommandDenied:
+  sprintf(reply, "Denied protected command");
 }
 
 void MyMesh::loop() {
