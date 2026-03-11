@@ -1123,8 +1123,12 @@ uint8_t CommonCLI::buildAdvertData(uint8_t node_type, uint8_t* app_data) {
 }
 
 bool CommonCLI::allowProtectedCommand(uint32_t sender_timestamp) {
+    // check if serial //
     if (0 == sender_timestamp) return true;
-    if (gl_allow_protected_over_remote) return true;
+    // protected not configured //
+    if (0 == *_prefs->password_protected) return true;
+    // check if allowed protected over remote //
+    if (getRTCClock()->getCurrentTime() - gl_allow_protected_over_remote < PROTECTED_TIME_DURATION) return true;
     return false;
 }
 
