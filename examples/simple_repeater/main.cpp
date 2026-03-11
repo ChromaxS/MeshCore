@@ -99,7 +99,11 @@ void setup() {
 
   // send out initial zero hop Advertisement to the mesh
 #if ENABLE_ADVERT_ON_BOOT == 1
-  the_mesh.sendSelfAdvertisement(16000, false);
+  if (!the_mesh.getNodePrefs()->silent_running) {
+    the_mesh.sendSelfAdvertisement(16000, false);
+  } else {
+    MESH_DEBUG_PRINTLN("silent running mode enabled -- skipping self advertisement on boot");
+  }
 #endif
 }
 
