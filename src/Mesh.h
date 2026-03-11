@@ -193,6 +193,8 @@ public:
   Packet* createTrace(uint32_t tag, uint32_t auth_code, uint8_t flags = 0);
   Packet* createControlData(const uint8_t* data, size_t len);
 
+  virtual void handleCommand(uint32_t sender_timestamp, char* command, char* reply);
+
   /**
    * \brief  send a locally-generated Packet with flood routing
   */

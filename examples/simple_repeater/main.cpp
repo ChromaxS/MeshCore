@@ -17,7 +17,9 @@ void halt() {
   while (1) ;
 }
 
-static char command[160];
+char g_serial_command[160];
+const int g_serial_command_size = sizeof(g_serial_command);
+char g_serial_command_backspaces[2 + 160];
 
 // For power saving
 unsigned long lastActive = 0; // mark last active time
@@ -84,7 +86,8 @@ void setup() {
   Serial.print("Repeater ID: ");
   mesh::Utils::printHex(Serial, the_mesh.self_id.pub_key, PUB_KEY_SIZE); Serial.println();
 
-  command[0] = 0;
+  *g_serial_command = 0;
+  g_serial_command_len = 0;
 
   sensors.begin();
 
@@ -101,32 +104,7 @@ void setup() {
 }
 
 void loop() {
-  int len = strlen(command);
-  while (Serial.available() && len < sizeof(command)-1) {
-    char c = Serial.read();
-    if (c != '\n') {
-      command[len++] = c;
-      command[len] = 0;
-      Serial.print(c);
-    }
-    if (c == '\r') break;
-  }
-  if (len == sizeof(command)-1) {  // command buffer full
-    command[sizeof(command)-1] = '\r';
-  }
-
-  if (len > 0 && command[len - 1] == '\r') {  // received complete line
-    Serial.print('\n');
-    command[len - 1] = 0;  // replace newline with C string null terminator
-    char reply[160];
-    the_mesh.handleCommand(0, command, reply);  // NOTE: there is no sender_timestamp via serial!
-    if (reply[0]) {
-      Serial.print("  -> "); Serial.println(reply);
-    }
-
-    command[0] = 0;  // reset command buffer
-  }
-
+  loop_serial_console(the_mesh);
   the_mesh.loop();
   sensors.loop();
 #ifdef DISPLAY_CLASS

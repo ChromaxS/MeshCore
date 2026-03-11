@@ -900,8 +900,8 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   _prefs.advert_loc_policy = ADVERT_LOC_PREFS;
 
   // MQTT defaults
-  StrHelper::strncpy(_prefs.mqtt_origin, "MeshCore-Repeater", sizeof(_prefs.mqtt_origin));
-  StrHelper::strncpy(_prefs.mqtt_iata, "SEA", sizeof(_prefs.mqtt_iata));
+  *_prefs.mqtt_origin = '\0';
+  *_prefs.mqtt_iata = '\0';
   _prefs.mqtt_status_enabled = 1;    // enabled
   _prefs.mqtt_packets_enabled = 1;   // enabled
   _prefs.mqtt_raw_enabled = 0;       // disabled
@@ -909,16 +909,16 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   _prefs.mqtt_status_interval = 300000; // 5 minutes
   
   // WiFi defaults
-  StrHelper::strncpy(_prefs.wifi_ssid, "ssid_here", sizeof(_prefs.wifi_ssid));
-  StrHelper::strncpy(_prefs.wifi_password, "password_here", sizeof(_prefs.wifi_password));
-  
-        // Timezone defaults (Pacific Time with DST support)
-        StrHelper::strncpy(_prefs.timezone_string, "America/Los_Angeles", sizeof(_prefs.timezone_string));
-        _prefs.timezone_offset = -8; // fallback
-        
-        // Let's Mesh Analyzer defaults (both enabled by default)
-        _prefs.mqtt_analyzer_us_enabled = 1; // enabled
-        _prefs.mqtt_analyzer_eu_enabled = 1; // enabled
+  *_prefs.wifi_ssid = '\0';
+  *_prefs.wifi_password = '\0';
+
+  // Timezone defaults (Pacific Time with DST support)
+  StrHelper::strncpy(_prefs.timezone_string, "America/Los_Angeles", sizeof(_prefs.timezone_string));
+  _prefs.timezone_offset = -8; // fallback
+
+  // Let's Mesh Analyzer defaults (both enabled by default)
+  _prefs.mqtt_analyzer_us_enabled = 1; // enabled
+  _prefs.mqtt_analyzer_eu_enabled = 1; // enabled
 
   _prefs.adc_multiplier = 0.0f; // 0.0f means use default board multiplier
 
@@ -932,13 +932,6 @@ void MyMesh::begin(FILESYSTEM *fs) {
   // load persisted prefs
   _cli.loadPrefs(_fs);
 
-  // Ensure analyzer servers are enabled by default (in case no prefs were loaded)
-  if (_prefs.mqtt_analyzer_us_enabled == 0 && _prefs.mqtt_analyzer_eu_enabled == 0) {
-    _prefs.mqtt_analyzer_us_enabled = 1; // enabled
-    _prefs.mqtt_analyzer_eu_enabled = 1; // enabled
-    MESH_DEBUG_PRINTLN("Setting analyzer servers to enabled by default");
-  }
-  
   // Set MQTT origin to actual device name (not build-time ADVERT_NAME)
   StrHelper::strncpy(_prefs.mqtt_origin, _prefs.node_name, sizeof(_prefs.mqtt_origin));
   MESH_DEBUG_PRINTLN("MQTT origin set to device name: %s", _prefs.mqtt_origin);

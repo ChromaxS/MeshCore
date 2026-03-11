@@ -179,24 +179,71 @@ void Dispatcher::checkRecv() {
     }
   }
   if (pkt) {
-    #if MESH_PACKET_LOGGING
-    Serial.print(getLogDateTime());
-    Serial.printf(": RX, len=%d (type=%d, route=%s, payload_len=%d) SNR=%d RSSI=%d score=%d time=%d", 
-            pkt->getRawLength(), pkt->getPayloadType(), pkt->isRouteDirect() ? "D" : "F", pkt->payload_len,
-            (int)pkt->getSNR(), (int)_radio->getLastRSSI(), (int)(score*1000), air_time);
+#if MESH_PACKET_LOGGING
+    // put sender/receiver info in for some types //
+    static char sendinfo[15];
+    if (pkt->getPayloadType() == PAYLOAD_TYPE_PATH || pkt->getPayloadType() == PAYLOAD_TYPE_REQ
+      || pkt->getPayloadType() == PAYLOAD_TYPE_RESPONSE || pkt->getPayloadType() == PAYLOAD_TYPE_TXT_MSG) {
+      sprintf(sendinfo, " [%02X -> %02X]\n", (uint32_t)pkt->payload[1], (uint32_t)pkt->payload[0]);
+    } else {
+      *sendinfo = '\0';
+    }
 
+    // put the path in if we have it //
+    static char pathinfo[70];
+    uint8_t *path_ptr = NULL;
+    size_t path_len = 0;
+    if (pkt->getPayloadType() == PAYLOAD_TYPE_TRACE) {
+      // print path from trace which is in the payload //
+      if (pkt->payload_len > 9) {
+        path_ptr = &pkt->payload[9];
+        path_len = pkt->payload_len - 9;
+
+checkRecvMakePathString:
+
+        strcpy(pathinfo, " Path: ");
+        size_t pos = strlen(pathinfo);
+        uint8_t *offset = path_ptr;
+        static char hex[9];
+        while (offset < path_ptr + path_len) {
+          // size check //
+          if (pos + (pkt->getPathHashSize() * 2) + 2 >= sizeof(pathinfo)) {
+            if (pos + 4 <= sizeof(pathinfo)) {
+              strcpy(pathinfo + pos, "...");
+            }
+            break;
+          }
+
+          // write path //
+          mesh::Utils::toHex(hex, offset, pkt->getPathHashSize());
+          pos += sprintf(pathinfo + pos, "%s%s", (offset != path_ptr ? "," : ""), hex);
+          offset += pkt->getPathHashSize();
+        }
+      } else {
+        strcpy(pathinfo, "Path: NONE");
+      }
+    } else if (pkt->getPathByteLen() > 0) {
+      path_ptr = pkt->path;
+      path_len = pkt->path_len;
+      goto checkRecvMakePathString;
+    } else {
+      *pathinfo = '\0';
+    }
+
+    // calculate the packet hash //
     static uint8_t packet_hash[MAX_HASH_SIZE];
     pkt->calculatePacketHash(packet_hash);
-    Serial.print(" hash=");
-    mesh::Utils::printHex(Serial, packet_hash, MAX_HASH_SIZE);
+    static char hash[(MAX_HASH_SIZE * 2) + 1];
+    mesh::Utils::toHex(hash, packet_hash, MAX_HASH_SIZE);
 
-    if (pkt->getPayloadType() == PAYLOAD_TYPE_PATH || pkt->getPayloadType() == PAYLOAD_TYPE_REQ
-        || pkt->getPayloadType() == PAYLOAD_TYPE_RESPONSE || pkt->getPayloadType() == PAYLOAD_TYPE_TXT_MSG) {
-      Serial.printf(" [%02X -> %02X]\n", (uint32_t)pkt->payload[1], (uint32_t)pkt->payload[0]);
-    } else {
-      Serial.printf("\n");
-    }
-    #endif
+    // and finally emit the log //
+    MESH_DEBUG_PRINTLN("%s: RX, len=%d (type=%d, path_sz=%d, path_len=%d, route=%s, payload_len=%d) SNR=%d RSSI=%d score=%d time=%d hash=%s%s%s",
+      getLogDateTime(),
+      pkt->getRawLength(), pkt->getPayloadType(), pkt->getPathHashSize(), pkt->getPathByteLen(), pkt->isRouteDirect() ? "D" : "F", pkt->payload_len,
+      (int)pkt->getSNR(), (int)_radio->getLastRSSI(), (int)(score*1000), air_time, hash,
+      sendinfo, pathinfo);
+#endif
+
     logRx(pkt, pkt->getRawLength(), score);   // hook for custom logging
 
     if (pkt->isRouteFlood()) {
@@ -289,17 +336,20 @@ void Dispatcher::checkSend() {
       }
       outbound_expiry = futureMillis(max_airtime);
 
-    #if MESH_PACKET_LOGGING
-      Serial.print(getLogDateTime());
-      Serial.printf(": TX, len=%d (type=%d, route=%s, payload_len=%d)", 
-            len, outbound->getPayloadType(), outbound->isRouteDirect() ? "D" : "F", outbound->payload_len);
+#if MESH_PACKET_LOGGING
+      static char sendinfo[15];
       if (outbound->getPayloadType() == PAYLOAD_TYPE_PATH || outbound->getPayloadType() == PAYLOAD_TYPE_REQ
         || outbound->getPayloadType() == PAYLOAD_TYPE_RESPONSE || outbound->getPayloadType() == PAYLOAD_TYPE_TXT_MSG) {
-        Serial.printf(" [%02X -> %02X]\n", (uint32_t)outbound->payload[1], (uint32_t)outbound->payload[0]);
+        sprintf(sendinfo, " [%02X -> %02X]", (uint32_t)outbound->payload[1], (uint32_t)outbound->payload[0]);
       } else {
-        Serial.printf("\n");
+        *sendinfo = '\0';
       }
-    #endif
+      MESH_DEBUG_PRINTLN("%s: TX, len=%d (type=%d, path_sz=%d, path_len=%d, route=%s, payload_len=%d)%s",
+        getLogDateTime(),
+        len, outbound->getPayloadType(), outbound->getPathHashSize(), outbound->getPathByteLen(),
+        outbound->isRouteDirect() ? "D" : "F", outbound->payload_len,
+        sendinfo);
+#endif
     }
   }
 }

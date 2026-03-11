@@ -186,9 +186,15 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 #### View or change this node's radio parameters
 **Usage:**
 - `get radio`
+- `set radio au`
+- `set radio eu`
+- `set radio us`
 - `set radio <freq>,<bw>,<sf>,<cr>`
 
 **Parameters:**
+- `au`: Sets Austrailian/New Zealand settings: `915.800,250.0,11,5`
+- `eu`: Sets European settings: `869.525,250.0,11,5`
+- `us`: Sets United States settings: `910.525,62.5,8,5`
 - `freq`: Frequency in MHz
 - `bw`: Bandwidth in kHz
 - `sf`: Spreading factor (5-12)
@@ -890,6 +896,7 @@ region save
 
 #### View or change the bridge enabled flag
 **Usage:**
+- `disable bridge`
 - `get bridge.enabled`
 - `set bridge.enabled <state>`
 
@@ -987,6 +994,7 @@ configuration values when changed.
 
 ### Enable MQTT US analysis
 **Usage:**
+- `disable mqtt.analyzer.us`
 - `get mqtt.analyzer.us`
 - `set mqtt.analyzer.us <enabled>`
 
@@ -1001,6 +1009,7 @@ configuration values when changed.
 
 ### Enable MQTT EU analysis
 **Usage:**
+- `disable mqtt.analyzer.eu`
 - `get mqtt.analyzer.eu`
 - `set mqtt.analyzer.eu <enabled>`
 
@@ -1015,6 +1024,7 @@ configuration values when changed.
 
 ### Set MQTT IATA (airport codes) region
 **Usage:**
+- `clear mqtt.iata`
 - `get mqtt.iata`
 - `set mqtt.iata <iata_code>`
 
@@ -1066,6 +1076,7 @@ NOTE: Setting this will potentially break compatibility with the letsmesh server
       only if you have a custom MQTT observer instance!
 
 **Usage:**
+- `clear mqtt.username`
 - `get mqtt.username`
 - `set mqtt.username <username>`
 
@@ -1082,8 +1093,9 @@ NOTE: Setting this will potentially break compatibility with the letsmesh server
 NOTE: Setting this will potentially break compatibility with the letsmesh servers! Set this
       only if you have a custom MQTT observer instance!
 **Usage:**
-- `get mqtt.username`
-- `set mqtt.username <password>`
+- `clear mqtt.password`
+- `get mqtt.password`
+- `set mqtt.password <password>`
 
 **Parameters:**
 - `password`: Override the MQTT password to a custom one.
@@ -1096,6 +1108,7 @@ NOTE: Setting this will potentially break compatibility with the letsmesh server
 
 ### Set MQTT Email
 **Usage:**
+- `clear mqtt.email`
 - `get mqtt.email`
 - `set mqtt.email <email>`
 
@@ -1110,8 +1123,9 @@ NOTE: Setting this will potentially break compatibility with the letsmesh server
 
 ### Set MQTT Owner
 **Usage:**
-- `mqtt.owner`
-- `mqtt.owner <pubkey>`
+- `clear mqtt.owner`
+- `get mqtt.owner`
+- `set mqtt.owner <pubkey>`
 
 **Parameters:**
 - `pubkey`: Companion node of the owner/administrator of the observer.
@@ -1122,6 +1136,7 @@ NOTE: Setting this will potentially break compatibility with the letsmesh server
 
 ### Set MQTT enabled
 **Usage:**
+- `disable mqtt.tx`
 - `get mqtt.tx`
 - `set mqtt.tx <enabled>`
 
@@ -1134,6 +1149,7 @@ NOTE: Setting this will potentially break compatibility with the letsmesh server
 
 ### Set timezone of repeater
 **Usage:**
+- `clear timezone.string`
 - `get timezone.string`
 - `set timezone.string <timezone>`
 
@@ -1146,6 +1162,7 @@ NOTE: Setting this will potentially break compatibility with the letsmesh server
 
 ### Set clock by NTP
 **Usage:**
+- `clear wifi.ntp.server`
 - `get wifi.ntp`
 - `set wifi.ntp.enabled <enabled>`
 
@@ -1183,6 +1200,7 @@ Gets the WiFi status. In protected mode the SSID is hidden.
 ### WiFi SSID
 
 **Usage:**
+- `clear wifi.ssid`
 - `get wifi.ssid`
 - `set wifi.ssid <ssid>`
 
@@ -1196,6 +1214,7 @@ Gets the WiFi status. In protected mode the SSID is hidden.
 ### WiFi Password
 
 **Usage:**
+- `clear wifi.pwd`
 - `get wifi.pwd`
 - `set wifi.pwd <pwd>`
 

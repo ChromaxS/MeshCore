@@ -9,6 +9,8 @@
 #define WITH_BRIDGE
 #endif
 
+#define PROTECTED_TIME_DURATION     300     // duration for protected mode being enabled //
+
 #define ADVERT_LOC_NONE       0
 #define ADVERT_LOC_SHARE      1
 #define ADVERT_LOC_PREFS      2
@@ -200,6 +202,7 @@ class CommonCLI {
   void savePrefs();
   void loadPrefsInt(FILESYSTEM* _fs, const char* filename);
   void loadPrefsJson(FILESYSTEM *_fs);
+  void setPrefsDefaults();
 #ifdef WITH_MQTT_BRIDGE
   void setMQTTPrefsDefaults();
   void loadMQTTPrefs(FILESYSTEM* fs);
@@ -219,3 +222,5 @@ public:
   mesh::MainBoard* getBoard() { return _board; }
   uint8_t buildAdvertData(uint8_t node_type, uint8_t* app_data);
 };
+
+extern void loop_serial_console(mesh::Mesh &the_mesh);

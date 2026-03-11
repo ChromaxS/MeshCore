@@ -11,6 +11,161 @@
 
 static int gl_allow_protected_over_remote = 0;
 
+extern char g_serial_command[];
+extern const int g_serial_command_size;
+int g_serial_command_len = 0;
+
+static const char gl_serial_command_history_size = 5;
+static char gl_serial_command_history[gl_serial_command_history_size + 1][160];
+static int gl_serial_command_history_length = 0;
+static int gl_serial_command_history_selector = 0;
+
+static int gl_serial_command_state = 1;
+static char gl_serial_command_code[2];
+void loop_serial_console(mesh::Mesh &the_mesh) {
+  // serial processing //
+  if (!Serial.available()) return;
+  const char c = Serial.read();
+
+  // if CTRL+C is pressed then reset the prompt //
+  if (0x03 == c) {
+    Serial.print("\n# ");
+
+loop_serial_console_reset:
+
+    // reset for another command //
+    g_serial_command_len = 0;
+    *g_serial_command = 0;
+    gl_serial_command_state = 1;
+
+    // selector should now be latest //
+    gl_serial_command_history_selector = gl_serial_command_history_length;
+  }
+
+  // command state //
+  if (gl_serial_command_state > 1) {
+    gl_serial_command_code[gl_serial_command_state - 2] = c;
+    gl_serial_command_state++;
+    if (4 == gl_serial_command_state) {
+      if (0x5B == gl_serial_command_code[0] && 0x41 == gl_serial_command_code[1]) {
+        // up arrow //
+//MESH_DEBUG_PRINTLN("a HISTORY_LENGTH=%d SELECTOR=%d", gl_serial_command_history_length, gl_serial_command_history_selector);
+        if (0 == gl_serial_command_history_selector) {
+          // don't do anything - selector is at the top //
+        } else {
+          if (gl_serial_command_history_selector == gl_serial_command_history_length) {
+            // copy current command into history if selector is moving away from active command //
+            strcpy(gl_serial_command_history[gl_serial_command_history_length], g_serial_command);
+          }
+
+          // set previous selector //
+          gl_serial_command_history_selector--;
+
+loop_serial_console_display_selected:
+
+//MESH_DEBUG_PRINTLN("c HISTORY_LENGTH=%d SELECTOR=%d", gl_serial_command_history_length, gl_serial_command_history_selector);
+
+          // remove current command //
+          const int backspace_size = g_serial_command_size / 3;
+          for (int i=g_serial_command_len; i>0; i-=backspace_size) {
+            const int backspace_len = i > backspace_size ? backspace_size : i;
+            for (int c=0; c < backspace_len; c++) {
+              g_serial_command_backspaces[c * 3] = '\b';
+              g_serial_command_backspaces[(c * 3) + 1] = ' ';
+              g_serial_command_backspaces[(c * 3) + 2] = '\b';
+            }
+            g_serial_command_backspaces[backspace_len * 3] = '\0';
+            Serial.print(g_serial_command_backspaces);
+          }
+
+          // set current to selected //
+          g_serial_command_len = strlen(gl_serial_command_history[gl_serial_command_history_selector]);
+          strncpy(g_serial_command, gl_serial_command_history[gl_serial_command_history_selector], g_serial_command_len);
+          g_serial_command[g_serial_command_len] = '\0';
+
+          // and display //
+          Serial.print(g_serial_command);
+        }
+      } else if (0x5B == gl_serial_command_code[0] && 0x42 == gl_serial_command_code[1]) {
+        // down arrow //
+        if (gl_serial_command_history_selector < gl_serial_command_history_length) {
+          // set next selector and display //
+//MESH_DEBUG_PRINTLN("b HISTORY_LENGTH=%d SELECTOR=%d", gl_serial_command_history_length, gl_serial_command_history_selector);
+          gl_serial_command_history_selector++;
+
+          goto loop_serial_console_display_selected;
+        }
+      } else {
+        MESH_DEBUG_PRINTLN("unhandled terminal command sequence: %2.2x %2.2x",
+          gl_serial_command_code[0], gl_serial_command_code[1]);
+      }
+
+      // go back to normal state //
+      gl_serial_command_state = 1;
+    }
+    return;
+  }
+
+  if ('\b' == c) {
+    // backspace //
+    if (g_serial_command_len > 0) {
+        g_serial_command_len--;
+        g_serial_command[g_serial_command_len] = '\0';
+        Serial.print("\b \b");
+    }
+  } else if ('\r' == c || '\n' == c) {
+    // carriage return //
+    g_serial_command[g_serial_command_len] = 0;
+    Serial.print('\n');
+    if (g_serial_command_len > 0) {
+      // handle the command //
+      char reply[160];
+      *reply = '\0';
+      the_mesh.handleCommand(0, g_serial_command, reply);  // NOTE: there is no sender_timestamp via serial!
+      if (*reply != '\0') {
+        Serial.print("  -> ");
+        Serial.println(reply);
+      }
+//MESH_DEBUG_PRINTLN("A HISTORY_LENGTH=%d SELECTOR=%d", gl_serial_command_history_length, gl_serial_command_history_selector);
+      // update command history //
+      if (gl_serial_command_history_length > 0 && (strcmp(gl_serial_command_history[gl_serial_command_history_length - 1], g_serial_command) == 0)) {
+        // don't do anything if the command was the same as the last command! //
+//MESH_DEBUG_PRINTLN("B");
+      } else {
+        if (gl_serial_command_history_length == gl_serial_command_history_size) {
+//MESH_DEBUG_PRINTLN("C DELETED: %s", gl_serial_command_history[0]);
+          // shift! //
+          for (int i=0; i<gl_serial_command_history_size - 1; i++) {
+//MESH_DEBUG_PRINTLN("C1 MOVED DOWN: %s", gl_serial_command_history[i + 1]);
+            strcpy(gl_serial_command_history[i], gl_serial_command_history[i + 1]);
+          }
+        } else {
+          gl_serial_command_history_length++;
+        }
+//MESH_DEBUG_PRINTLN("D HISTORY_LENGTH=%d", gl_serial_command_history_length);
+        strcpy(gl_serial_command_history[gl_serial_command_history_length - 1], g_serial_command);
+      }
+
+      // history selector goes to the last command always //
+      gl_serial_command_history_selector = gl_serial_command_history_length;
+//MESH_DEBUG_PRINTLN("E HISTORY_LENGTH=%d SELECTOR=%d", gl_serial_command_history_length, gl_serial_command_history_selector);
+      // reset and go for another! //
+      goto loop_serial_console_reset;
+    }
+    Serial.print("# ");
+  } else if (0x1B == c) {
+      // start a command //
+      gl_serial_command_state = 2;
+  } else {
+    // add chars as typing //
+    if (g_serial_command_len < g_serial_command_size - 1) {
+      g_serial_command[g_serial_command_len++] = c;
+      g_serial_command[g_serial_command_len] = '\0';
+      Serial.print(c);
+    }
+  }
+}
+
 // Helper function to calculate total size of MQTT fields for file format compatibility
 // Uses NodePrefs struct to get accurate field sizes
 static size_t getMQTTFieldsSize(const NodePrefs* prefs) {
@@ -105,7 +260,8 @@ void CommonCLI::loadPrefs(FILESYSTEM* fs) {
   if (!loaded_from_json and !save_config) {
     // file doesn't exist //
     MESH_DEBUG_PRINTLN("No configuration file... setting defaults.");
-    // set default mqtt settings //
+    // set default settings //
+    setPrefsDefaults();
     setMQTTPrefsDefaults();
     // set default bridge settings for fresh installs //
     _prefs->bridge_pkt_src = 1;  // Default to RX (logRx) for new installs
@@ -201,6 +357,7 @@ void CommonCLI::loadPrefsJson(FILESYSTEM *fs) {
 
     // Initialize with defaults first
     memset(_prefs, 0, sizeof(_prefs));
+    setPrefsDefaults();
     setMQTTPrefsDefaults();
 
     bool json_existed = fs->exists("/prefs.json");
@@ -634,6 +791,45 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
   config_file.close();
 }
 
+void CommonCLI::setPrefsDefaults() {
+  // Set sensible defaults
+  _prefs->airtime_factor = 1.0;   // one half
+  _prefs->rx_delay_base = 0.0f;   // turn off by default, was 10.0;
+  _prefs->tx_delay_factor = 0.5f; // was 0.25f
+  _prefs->direct_tx_delay_factor = 0.3f; // was 0.2
+  *_prefs->node_name = '\0';
+  _prefs->node_lat = 0.0;
+  _prefs->node_lon = 0.0;
+  *_prefs->password = '\0';
+  _prefs->freq = 869.525;         // it's documented that the EU radio settings are used by default
+  _prefs->sf = 250.0;
+  _prefs->bw = 11;
+  _prefs->cr = 5;
+  _prefs->tx_power_dbm = 0;
+  _prefs->advert_interval = 1;    // default to 2 minutes for NEW installs
+  _prefs->flood_advert_interval = 12; // 12 hours
+  _prefs->flood_max = 64;
+  _prefs->interference_threshold = 0; // disabled
+
+  // bridge defaults
+  _prefs->bridge_enabled = 1;    // enabled
+  _prefs->bridge_delay   = 500;  // milliseconds
+  _prefs->bridge_pkt_src = 1;    // logRx (RX packets)
+  _prefs->bridge_baud = 115200;  // baud rate
+  _prefs->bridge_channel = 1;    // channel 1
+
+  *_prefs->bridge_secret = '\0';
+
+  // GPS defaults
+  _prefs->gps_enabled = 0;
+  _prefs->gps_interval = 0;
+  _prefs->advert_loc_policy = ADVERT_LOC_PREFS;
+
+  _prefs->adc_multiplier = 0.0f; // 0.0f means use default board multiplier
+
+  // String fields are already zero-initialized by memset
+}
+
 #ifdef WITH_MQTT_BRIDGE
 // Set default values for MQTT preferences (used when file doesn't exist or is corrupted)
 void CommonCLI::setMQTTPrefsDefaults() {
@@ -651,6 +847,7 @@ void CommonCLI::setMQTTPrefsDefaults() {
   _prefs->mqtt_admin_public_key[0] = '\0'; // Empty by default
   _prefs->wifi_ntp_enabled = 1;        // enabled by default
   strncpy(_prefs->wifi_ntp_server, "pool.ntp.org", sizeof(_prefs->wifi_ntp_server));
+
   // String fields are already zero-initialized by memset
 }
 
@@ -932,7 +1129,40 @@ bool CommonCLI::allowProtectedCommand(uint32_t sender_timestamp) {
 }
 
 void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, char* reply) {
-    if (strcmp(command, "reboot") == 0) {
+    if (strcmp(command, "help") == 0) {
+handleCommandHelpSections:
+      strcpy(reply, "Help sections: admin, clear, debug, disable, general, get\n"
+        "  gps, log, sensor, set, stats");
+    } else if (memcmp(command, "help ", 5) == 0) {
+        const char* section = &command[5];
+        if (strcmp(section, "admin") == 0) {
+          strcpy(reply, "Possible: board, clkreboot, clock sync, erase,\n"
+            "  guest.password, memory, password[.protected],\n"
+            "  powersaving, radio, reboot, start ota, tempradio, time, ver\n"
+          );
+        } else if (strcmp(section, "clear") == 0) {
+          goto handleCommandHelpClear;
+        } else if (strcmp(section, "debug") == 0) {
+          goto handleCommandHelpDebug;
+        } else if (strcmp(section, "disable") == 0) {
+          goto handleCommandHelpDisable;
+        } else if (strcmp(section, "general") == 0) {
+          strcpy(reply, "Possible: advert[.zerohop], clock, neighbor[s|.remove],\n"
+            "  neighbor[s|.remove], ,\n"
+            "  tempradio, time\n"
+          );
+        } else if (strcmp(section, "gps") == 0) {
+          strcpy(reply, "Possible: gps, on, sync, setloc, advert");
+        } else if (strcmp(section, "log") == 0) {
+          strcpy(reply, "Possible: log, start, stop, erase");
+        } else if (strcmp(section, "sensor") == 0) {
+          strcpy(reply, "Possible: get, list");
+        } else if (strcmp(section, "stats") == 0) {
+          strcpy(reply, "Possible: stats-packets, stats-radio, stats-core");
+        } else {
+            goto handleCommandHelpSections;
+        }
+    } else if (strcmp(command, "reboot") == 0) {
       if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
       _board->reboot();  // doesn't return
     } else if (strcmp(command, "clkreboot") == 0) {
@@ -1035,9 +1265,6 @@ handleCommand_protected_cleared:
       StrHelper::strncpy(_prefs->password, &command[9], sizeof(_prefs->password));
       savePrefs();
       sprintf(reply, "password now: %s", _prefs->password);   // echo back just to let admin know for sure!!
-    } else if (strcmp(command, "clear stats") == 0) {
-      _callbacks->clearStats();
-      strcpy(reply, "(OK - stats reset)");
     /*
      * GET commands
      */
@@ -1182,10 +1409,10 @@ handleCommand_protected_cleared:
               } else if (strcmp(config, "wifi.ntp.enabled") == 0) {
                 sprintf(reply, "> %s", _prefs->wifi_ntp_enabled ? "on" : "off");
               } else if (strcmp(config, "wifi.ssid") == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+                if (0 != sender_timestamp) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->wifi_ssid);
               } else if (strcmp(config, "wifi.pwd") == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+                if (0 != sender_timestamp) goto handleCommandDenied;
                 sprintf(reply, "> %s", _prefs->wifi_password);
               } else if (strcmp(config, "wifi.status") == 0) {
                 wl_status_t status = WiFi.status();
@@ -1299,14 +1526,168 @@ handleCommand_protected_cleared:
         sprintf(reply, "??: %s", config);
       }
     /*
+    * CLEAR commands
+    */
+    } else if (strcmp(command, "clear") == 0) {
+handleCommandHelpClear:
+      // this is near 160 characters DO NOT ADD MORE //
+      strcpy(reply, "Possible: allow.{protected|read.only}, guest.password, owner.info,\n"
+#ifdef WITH_MQTT_BRIDGE
+        "mqtt: email, iata, origin, owner, password, server, username\n"
+        "wifi: ntp.server, pwd, ssid"
+#endif
+      );
+    } else if (memcmp(command, "clear ", 6) == 0) {
+      const char* config = &command[6];
+      if (strcmp(config, "allow.protected") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        gl_allow_protected_over_remote = 0;
+        sprintf(reply, "OK: disabled protected mode");
+      } else if (strcmp(config, "allow.read.only") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        _prefs->allow_read_only = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "guest.password") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        *_prefs->guest_password = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "owner.info") == 0) {
+        if (0 != sender_timestamp) goto handleCommandDenied;
+        *_prefs->owner_info = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "stats") == 0) {
+        _callbacks->clearStats();
+        strcpy(reply, "(OK - stats reset)");
+#ifdef WITH_MQTT_BRIDGE
+      } else if (strcmp(config, "mqtt") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        *_prefs->mqtt_email = 0;
+        *_prefs->mqtt_iata = 0;
+        *_prefs->mqtt_origin = 0;
+        *_prefs->mqtt_owner_public_key = 0;
+        *_prefs->mqtt_password = 0;
+        *_prefs->mqtt_server = 0;
+        *_prefs->mqtt_username = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "mqtt.email") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        *_prefs->mqtt_email = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "mqtt.iata") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        *_prefs->mqtt_iata = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "mqtt.origin") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        *_prefs->mqtt_origin = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "mqtt.owner") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        *_prefs->mqtt_owner_public_key = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "mqtt.password") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        *_prefs->mqtt_password = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "mqtt.server") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        *_prefs->mqtt_server = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "mqtt.username") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        *_prefs->mqtt_username = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "timezone.string") == 0) {
+        if (0 != sender_timestamp) goto handleCommandDenied;
+        *_prefs->timezone_string = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "wifi") == 0) {
+        if (0 != sender_timestamp) goto handleCommandDenied;
+        *_prefs->wifi_ntp_server = 0;
+        *_prefs->wifi_password = 0;
+        *_prefs->wifi_ssid = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "wifi.ntp.server") == 0) {
+        if (0 != sender_timestamp) goto handleCommandDenied;
+        *_prefs->wifi_ntp_server = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "wifi.pwd") == 0) {
+        if (0 != sender_timestamp) goto handleCommandDenied;
+        *_prefs->wifi_password = 0;
+        goto handleCommandClearedAndSave;
+      } else if (strcmp(config, "wifi.ssid") == 0) {
+        if (0 != sender_timestamp) goto handleCommandDenied;
+        *_prefs->wifi_ssid = 0;
+        goto handleCommandClearedAndSave;
+#endif
+      } else {
+        strcpy(reply, "> unknown setting");
+      }
+    } else if (strcmp(command, "disable") == 0) {
+handleCommandHelpDisable:
+      strcpy(reply, "Possible: bridge"
+#ifdef WITH_MQTT_BRIDGE
+        "mqtt: analyzer.eu, analyzer.us, packets, raw, status, tx,\n"
+        "wifi: ntp, powersave"
+#endif
+      );
+    } else if (memcmp(command, "disable ", 8) == 0) {
+      const char* config = &command[8];
+      if (strcmp(config, "bridge") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        _prefs->bridge_enabled = 0;
+        goto handleCommandDisabledAndSave;
+#ifdef WITH_MQTT_BRIDGE
+      } else if (strcmp(config, "mqtt.analyzer.eu") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        _prefs->mqtt_analyzer_eu_enabled = 0;
+        goto handleCommandDisabledAndSave;
+      } else if (strcmp(config, "mqtt.analyzer.us") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        _prefs->mqtt_analyzer_us_enabled = 0;
+        goto handleCommandDisabledAndSave;
+      } else if (strcmp(config, "mqtt.packets") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        _prefs->mqtt_packets_enabled = 0;
+        goto handleCommandDisabledAndSave;
+      } else if (strcmp(config, "mqtt.raw") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        _prefs->mqtt_raw_enabled = 0;
+        goto handleCommandDisabledAndSave;
+      } else if (strcmp(config, "mqtt.status") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        _prefs->mqtt_status_enabled = 0;
+        goto handleCommandDisabledAndSave;
+      } else if (strcmp(config, "mqtt.tx") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        _prefs->mqtt_tx_enabled = 0;
+        goto handleCommandDisabledAndSave;
+      } else if (strcmp(config, "wifi.ntp") == 0) {
+          if (0 != sender_timestamp) goto handleCommandDenied;
+        _prefs->wifi_ntp_enabled = 0;
+        goto handleCommandDisabledAndSave;
+      } else if (strcmp(config, "wifi.powersave") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        _prefs->wifi_power_save = 1;
+        goto handleCommandDisabledAndSave;
+#endif
+      } else {
+          strcpy(reply, "> unknown feature");
+      }
+    /*
      * SET commands
      */
     } else if (memcmp(command, "set ", 4) == 0) {
       const char* config = &command[4];
       if (memcmp(config, "allow.protected ", 16) == 0) {
-        gl_allow_protected_over_remote = *_prefs->password_protected &&
-            strcmp(&config[16], _prefs->password_protected) == 0;
-        sprintf(reply, "OK: %s", gl_allow_protected_over_remote ? "ON" : "OFF");
+        if (*_prefs->password_protected &&
+            strcmp(&config[16], _prefs->password_protected) == 0)
+        {
+            gl_allow_protected_over_remote = getRTCClock()->getCurrentTime();
+            sprintf(reply, "OK: protected mode enabled for %d second(s)", PROTECTED_TIME_DURATION);
+        } else {
+            strcpy(reply, "Invalid protected command!");
+        }
       } else if (memcmp(config, "af ", 3) == 0) {
         if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
         _prefs->airtime_factor = atof(&config[3]);
@@ -1389,22 +1770,46 @@ handleCommand_protected_cleared:
         strcpy(reply, _prefs->disable_fwd ? "OK - repeat is now OFF" : "OK - repeat is now ON");
       } else if (memcmp(config, "radio ", 6) == 0) {
         if (0 != sender_timestamp) goto handleCommandDenied;
-        strcpy(tmp, &config[6]);
-        const char *parts[4];
-        int num = mesh::Utils::parseTextParts(tmp, parts, 4);
-        float freq  = num > 0 ? strtof(parts[0], nullptr) : 0.0f;
-        float bw    = num > 1 ? strtof(parts[1], nullptr) : 0.0f;
-        uint8_t sf  = num > 2 ? atoi(parts[2]) : 0;
-        uint8_t cr  = num > 3 ? atoi(parts[3]) : 0;
-        if (freq >= 300.0f && freq <= 2500.0f && sf >= 5 && sf <= 12 && cr >= 5 && cr <= 8 && bw >= 7.0f && bw <= 500.0f) {
-          _prefs->sf = sf;
-          _prefs->cr = cr;
-          _prefs->freq = freq;
-          _prefs->bw = bw;
+        if (strcmp(&config[6], "au") == 0) {
+          // set austrailia/new zealand radio settings //
+          _prefs->freq = 915.8;
+          _prefs->bw = 250.0;
+          _prefs->sf = 10;
+          _prefs->cr = 5;
+handleCommandSetRadioSave:
           _callbacks->savePrefs();
           strcpy(reply, "OK - reboot to apply");
+        } else if (strcmp(&config[6], "eu") == 0) {
+          // set us radio settings //
+          _prefs->freq = 869.525;
+          _prefs->bw = 250.0;
+          _prefs->sf = 11;
+          _prefs->cr = 5;
+          goto handleCommandSetRadioSave;
+        } else if (strcmp(&config[6], "us") == 0) {
+          // set united states radio settings //
+          _prefs->freq = 910.525;
+          _prefs->bw = 62.5;
+          _prefs->sf = 8;
+          _prefs->cr = 5;
+          goto handleCommandSetRadioSave;
         } else {
-          strcpy(reply, "Error, invalid radio params");
+          strcpy(tmp, &config[6]);
+          const char *parts[4];
+          int num = mesh::Utils::parseTextParts(tmp, parts, 4);
+          float freq  = num > 0 ? strtof(parts[0], nullptr) : 0.0f;
+          float bw    = num > 1 ? strtof(parts[1], nullptr) : 0.0f;
+          uint8_t sf  = num > 2 ? atoi(parts[2]) : 0;
+          uint8_t cr  = num > 3 ? atoi(parts[3]) : 0;
+          if (freq >= 300.0f && freq <= 2500.0f && sf >= 5 && sf <= 12 && cr >= 5 && cr <= 8 && bw >= 7.0f && bw <= 500.0f) {
+            _prefs->sf = sf;
+            _prefs->cr = cr;
+            _prefs->freq = freq;
+            _prefs->bw = bw;
+            goto handleCommandSetRadioSave;
+          } else {
+            strcpy(reply, "Error, invalid radio params: au, eu, us, or freq,bw,sf,cr");
+          }
         }
       } else if (memcmp(config, "lat ", 4) == 0) {
         if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
@@ -1582,21 +1987,25 @@ handleCommand_protected_cleared:
       } else if (memcmp(config, "mqtt.status ", 12) == 0) {
         if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
         _prefs->mqtt_status_enabled = memcmp(&config[12], "on", 2) == 0;
+        if (!_prefs->mqtt_status_enabled) goto handleCommandDisabledAndSave;
         savePrefs();
         strcpy(reply, "OK");
       } else if (memcmp(config, "mqtt.packets ", 13) == 0) {
         if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
         _prefs->mqtt_packets_enabled = strcmp(&config[13], "on") == 0;
+        if (!_prefs->mqtt_packets_enabled) goto handleCommandDisabledAndSave;
         savePrefs();
         strcpy(reply, "OK");
               } else if (memcmp(config, "mqtt.raw ", 9) == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 _prefs->mqtt_raw_enabled = strcmp(&config[9], "on") == 0;
+                if (!_prefs->mqtt_raw_enabled) goto handleCommandDisabledAndSave;
                 savePrefs();
                 strcpy(reply, "OK");
               } else if (memcmp(config, "mqtt.tx ", 8) == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 _prefs->mqtt_tx_enabled = strcmp(&config[8], "on") == 0;
+                if (!_prefs->mqtt_tx_enabled) goto handleCommandDisabledAndSave;
                 savePrefs();
                 strcpy(reply, "OK");
               } else if (memcmp(config, "mqtt.interval ", 14) == 0) {
@@ -1614,6 +2023,7 @@ handleCommand_protected_cleared:
               } else if (memcmp(config, "wifi.ntp.enabled ", 17) == 0) {
                 if (0 != sender_timestamp) goto handleCommandDenied;
                 _prefs->wifi_ntp_enabled = strcmp(&config[17], "on") == 0;
+                if (!_prefs->wifi_ntp_enabled) goto handleCommandDisabledAndSave;
                 savePrefs();
                 strcpy(reply, "OK");
               } else if (memcmp(config, "wifi.ntp.server ", 16) == 0) {
@@ -1622,17 +2032,17 @@ handleCommand_protected_cleared:
                 savePrefs();
                 strcpy(reply, "OK");
               } else if (memcmp(config, "wifi.ssid ", 10) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+                if (0 != sender_timestamp) goto handleCommandDenied;
                 StrHelper::strncpy(_prefs->wifi_ssid, &config[10], sizeof(_prefs->wifi_ssid));
                 savePrefs();
                 strcpy(reply, "OK");
               } else if (memcmp(config, "wifi.pwd ", 9) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+                if (0 != sender_timestamp) goto handleCommandDenied;
                 StrHelper::strncpy(_prefs->wifi_password, &config[9], sizeof(_prefs->wifi_password));
                 savePrefs();
                 strcpy(reply, "OK");
               } else if (memcmp(config, "wifi.powersave ", 15) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+                if (0 != sender_timestamp) goto handleCommandDenied;
                 const char* value = &config[15];
                 uint8_t ps_value;
                 bool valid = false;
@@ -1651,6 +2061,7 @@ handleCommand_protected_cleared:
                   strcpy(reply, "Error: must be none, min, or max");
                 } else {
                   _prefs->wifi_power_save = ps_value;
+                  if (1 == _prefs->wifi_power_save) goto handleCommandDisabledAndSave;
                   savePrefs();
                   
                   // Apply immediately if WiFi is connected
@@ -1872,6 +2283,8 @@ handleCommand_protected_cleared:
         default:
           strcpy(reply, "error");
         }
+    } else if (strcmp(command, "gps advert") == 0) {
+      strcpy(reply, "Possible: none, share, prefs");
     } else if (memcmp(command, "gps advert ", 11) == 0) {
       if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
       if (strcmp(&command[11], "none") == 0) {
@@ -1908,6 +2321,9 @@ handleCommand_protected_cleared:
         strcpy(reply, "Can't find GPS");
       }
 #endif
+    } else if (strcmp(command, "debug") == 0) {
+handleCommandHelpDebug:
+      strcpy(reply, "Possible: noise_floor");
     } else if (memcmp(command, "debug ", 6) == 0) {
       if (0 != sender_timestamp) goto handleCommandDenied;
       if (strcmp(&command[6], "noise_floor") == 0) {
@@ -1954,4 +2370,13 @@ handleCommand_protected_cleared:
     return;
 handleCommandDenied:
     sprintf(reply, "Denied protected command", tmp);
+    return;
+handleCommandClearedAndSave:
+    savePrefs();
+    strcpy(reply, "OK: Cleared");
+    return;
+handleCommandDisabledAndSave:
+    strcpy(reply, "OK: Disabled");
+    savePrefs();
+    return;
 }

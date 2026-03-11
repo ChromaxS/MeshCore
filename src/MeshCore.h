@@ -20,19 +20,39 @@
 #define MAX_PATH_SIZE        64
 #define MAX_TRANS_UNIT      255
 
+extern char g_serial_command[];
+extern const int g_serial_command_size;
+extern char g_serial_command_backspaces[];
+extern int g_serial_command_len;
+
+#define SERIAL_REMOVE_COMMAND \
+  memset(g_serial_command_backspaces, '\b', g_serial_command_len + 2); \
+  g_serial_command_backspaces[g_serial_command_len + 2] = '\0'; \
+  Serial.print(g_serial_command_backspaces);
+
+#define SERIAL_ADD_COMMAND \
+  Serial.print("# "); \
+  if (g_serial_command) { Serial.print(g_serial_command); }
+
 #if MESH_DEBUG && ARDUINO
   #include <Arduino.h>
   #define MESH_DEBUG_PRINT(F, ...) Serial.printf("DEBUG: " F, ##__VA_ARGS__)
-  #define MESH_DEBUG_PRINTLN(F, ...) Serial.printf("DEBUG: " F "\n", ##__VA_ARGS__)
+  #define MESH_DEBUG_PRINTLN(F, ...) { if (Serial.availableForWrite()) { SERIAL_REMOVE_COMMAND; Serial.printf("DEBUG: " F "\n", ##__VA_ARGS__); SERIAL_ADD_COMMAND; } }
 #else
   #define MESH_DEBUG_PRINT(...) {}
   #define MESH_DEBUG_PRINTLN(...) {}
 #endif
 
 #if BRIDGE_DEBUG && ARDUINO
-#define BRIDGE_DEBUG_PRINTLN(F, ...) Serial.printf("%s BRIDGE: " F, getLogDateTime(), ##__VA_ARGS__)
+#define BRIDGE_DEBUG_PRINTLN(F, ...) { if (Serial.availableForWrite()) { SERIAL_REMOVE_COMMAND; Serial.printf("%s BRIDGE: " F "\n", getLogDateTime(), ##__VA_ARGS__); SERIAL_ADD_COMMAND; } }
 #else
 #define BRIDGE_DEBUG_PRINTLN(...) {}
+#endif
+
+#if REPEATER_DEBUG && ARDUINO
+#define REPEATER_DEBUG_PRINTLN(F, ...) { if (Serial.availableForWrite()) { SERIAL_REMOVE_COMMAND; Serial.printf("%s REPEATER: " F "\n", getLogDateTime(), ##__VA_ARGS__); SERIAL_ADD_COMMAND; } }
+#else
+#define REPEATER_DEBUG_PRINTLN(...) {}
 #endif
 
 namespace mesh {

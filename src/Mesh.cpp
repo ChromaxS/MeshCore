@@ -620,6 +620,11 @@ Packet* Mesh::createControlData(const uint8_t* data, size_t len) {
   return packet;
 }
 
+void Mesh::handleCommand(uint32_t sender_timestamp, char* command, char* reply)
+{
+  // do nothing //
+}
+
 void Mesh::sendFlood(Packet* packet, uint32_t delay_millis, uint8_t path_hash_size) {
   if (packet->getPayloadType() == PAYLOAD_TYPE_TRACE) {
     MESH_DEBUG_PRINTLN("%s Mesh::sendFlood(): TRACE type not suspported", getLogDateTime());
