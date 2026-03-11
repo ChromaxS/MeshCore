@@ -8,8 +8,11 @@ This is a fork of the MeshCore repository with the observer firmware patches fro
 
 There are several changes here including:
 - JSON configuration files
-- protected command mode that allows remote admin with a password
-- improvements to command line handling
+- protected command mode that allows remote admin with a password (`set password.protected` and use `allow.protected <password>` to enable)
+- improvements to command line handling (active command no longer clobbered by logs; history)
+- new serial commands: `help` (and sections), `disable <feature>`, `clear <setting>` (including full config like `clear mqtt` or `clear wifi`)
+- silent running mode (suppress sending advertisements, don't respond to discovery packets, drop #wardriving group texts)
+- Regenerate the node's private key from the serial console: `regen.prv.key`
 
 ## Chro Planned
 
