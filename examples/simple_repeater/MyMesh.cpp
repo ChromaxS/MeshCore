@@ -415,6 +415,7 @@ bool MyMesh::isLooped(const mesh::Packet* packet, const uint8_t max_counters[]) 
 
 bool MyMesh::allowPacketForward(const mesh::Packet *packet) {
   if (_prefs.disable_fwd) return false;
+
   if (packet->isRouteFlood() && packet->getPathHashCount() >= _prefs.flood_max) return false;
   if (packet->isRouteFlood() && recv_pkt_region == NULL) {
     MESH_DEBUG_PRINTLN("allowPacketForward: unknown transport code, or wildcard not allowed for FLOOD packet");
@@ -434,6 +435,17 @@ bool MyMesh::allowPacketForward(const mesh::Packet *packet) {
       return false;
     }
   }
+
+  // if silent running then don't forward wardriving packets //
+  if (_prefs.silent_running) {
+    if (packet->getPayloadType() == PAYLOAD_TYPE_GRP_TXT) {
+      if (packet->payload_len >= 1 && packet->payload[0] == 0x81) {
+        MESH_DEBUG_PRINTLN("allowPacketForward: silent mode enabled so dropping #wardriving packet!");
+        return false;
+      }
+    }
+  }
+
   return true;
 }
 
