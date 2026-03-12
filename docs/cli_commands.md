@@ -200,7 +200,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Parameters:**
 - `au`: Sets Austrailian/New Zealand settings: `915.800,250.0,11,5`
 - `eu`: Sets European settings: `869.525,250.0,11,5`
-- `us`: Sets United States settings: `910.525,62.5,8,5`
+- `us`: Sets United States settings: `910.525,62.5,7,5`
 - `freq`: Frequency in MHz
 - `bw`: Bandwidth in kHz
 - `sf`: Spreading factor (5-12)

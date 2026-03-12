@@ -105,10 +105,18 @@ void setup() {
     MESH_DEBUG_PRINTLN("silent running mode enabled -- skipping self advertisement on boot");
   }
 #endif
+
+  // start telent server //
+  if (the_mesh.getNodePrefs()->wifi_telnet_enabled) {
+    MESH_DEBUG_PRINTLN("starting telnet server");
+    g_server_telnet.begin();
+  }
 }
 
 void loop() {
+  loop_telnet_server(the_mesh);
   loop_serial_console(the_mesh);
+
   the_mesh.loop();
   sensors.loop();
 #ifdef DISPLAY_CLASS

@@ -14,161 +14,6 @@
 
 static int gl_allow_protected_over_remote = 0;
 
-extern char g_serial_command[];
-extern const int g_serial_command_size;
-int g_serial_command_len = 0;
-
-static const char gl_serial_command_history_size = 5;
-static char gl_serial_command_history[gl_serial_command_history_size + 1][160];
-static int gl_serial_command_history_length = 0;
-static int gl_serial_command_history_selector = 0;
-
-static int gl_serial_command_state = 1;
-static char gl_serial_command_code[2];
-void loop_serial_console(mesh::Mesh &the_mesh) {
-  // serial processing //
-  if (!Serial.available()) return;
-  const char c = Serial.read();
-
-  // if CTRL+C is pressed then reset the prompt //
-  if (0x03 == c) {
-    Serial.print("\n# ");
-
-loop_serial_console_reset:
-
-    // reset for another command //
-    g_serial_command_len = 0;
-    *g_serial_command = 0;
-    gl_serial_command_state = 1;
-
-    // selector should now be latest //
-    gl_serial_command_history_selector = gl_serial_command_history_length;
-  }
-
-  // command state //
-  if (gl_serial_command_state > 1) {
-    gl_serial_command_code[gl_serial_command_state - 2] = c;
-    gl_serial_command_state++;
-    if (4 == gl_serial_command_state) {
-      if (0x5B == gl_serial_command_code[0] && 0x41 == gl_serial_command_code[1]) {
-        // up arrow //
-//MESH_DEBUG_PRINTLN("a HISTORY_LENGTH=%d SELECTOR=%d", gl_serial_command_history_length, gl_serial_command_history_selector);
-        if (0 == gl_serial_command_history_selector) {
-          // don't do anything - selector is at the top //
-        } else {
-          if (gl_serial_command_history_selector == gl_serial_command_history_length) {
-            // copy current command into history if selector is moving away from active command //
-            strcpy(gl_serial_command_history[gl_serial_command_history_length], g_serial_command);
-          }
-
-          // set previous selector //
-          gl_serial_command_history_selector--;
-
-loop_serial_console_display_selected:
-
-//MESH_DEBUG_PRINTLN("c HISTORY_LENGTH=%d SELECTOR=%d", gl_serial_command_history_length, gl_serial_command_history_selector);
-
-          // remove current command //
-          const int backspace_size = g_serial_command_size / 3;
-          for (int i=g_serial_command_len; i>0; i-=backspace_size) {
-            const int backspace_len = i > backspace_size ? backspace_size : i;
-            for (int c=0; c < backspace_len; c++) {
-              g_serial_command_backspaces[c * 3] = '\b';
-              g_serial_command_backspaces[(c * 3) + 1] = ' ';
-              g_serial_command_backspaces[(c * 3) + 2] = '\b';
-            }
-            g_serial_command_backspaces[backspace_len * 3] = '\0';
-            Serial.print(g_serial_command_backspaces);
-          }
-
-          // set current to selected //
-          g_serial_command_len = strlen(gl_serial_command_history[gl_serial_command_history_selector]);
-          strncpy(g_serial_command, gl_serial_command_history[gl_serial_command_history_selector], g_serial_command_len);
-          g_serial_command[g_serial_command_len] = '\0';
-
-          // and display //
-          Serial.print(g_serial_command);
-        }
-      } else if (0x5B == gl_serial_command_code[0] && 0x42 == gl_serial_command_code[1]) {
-        // down arrow //
-        if (gl_serial_command_history_selector < gl_serial_command_history_length) {
-          // set next selector and display //
-//MESH_DEBUG_PRINTLN("b HISTORY_LENGTH=%d SELECTOR=%d", gl_serial_command_history_length, gl_serial_command_history_selector);
-          gl_serial_command_history_selector++;
-
-          goto loop_serial_console_display_selected;
-        }
-      } else {
-        MESH_DEBUG_PRINTLN("unhandled terminal command sequence: %2.2x %2.2x",
-          gl_serial_command_code[0], gl_serial_command_code[1]);
-      }
-
-      // go back to normal state //
-      gl_serial_command_state = 1;
-    }
-    return;
-  }
-
-  if ('\b' == c) {
-    // backspace //
-    if (g_serial_command_len > 0) {
-        g_serial_command_len--;
-        g_serial_command[g_serial_command_len] = '\0';
-        Serial.print("\b \b");
-    }
-  } else if ('\r' == c || '\n' == c) {
-    // carriage return //
-    g_serial_command[g_serial_command_len] = 0;
-    Serial.print('\n');
-    if (g_serial_command_len > 0) {
-      // handle the command //
-      char reply[160];
-      *reply = '\0';
-      the_mesh.handleCommand(0, g_serial_command, reply);  // NOTE: there is no sender_timestamp via serial!
-      if (*reply != '\0') {
-        Serial.print("  -> ");
-        Serial.println(reply);
-      }
-//MESH_DEBUG_PRINTLN("A HISTORY_LENGTH=%d SELECTOR=%d", gl_serial_command_history_length, gl_serial_command_history_selector);
-      // update command history //
-      if (gl_serial_command_history_length > 0 && (strcmp(gl_serial_command_history[gl_serial_command_history_length - 1], g_serial_command) == 0)) {
-        // don't do anything if the command was the same as the last command! //
-//MESH_DEBUG_PRINTLN("B");
-      } else {
-        if (gl_serial_command_history_length == gl_serial_command_history_size) {
-//MESH_DEBUG_PRINTLN("C DELETED: %s", gl_serial_command_history[0]);
-          // shift! //
-          for (int i=0; i<gl_serial_command_history_size - 1; i++) {
-//MESH_DEBUG_PRINTLN("C1 MOVED DOWN: %s", gl_serial_command_history[i + 1]);
-            strcpy(gl_serial_command_history[i], gl_serial_command_history[i + 1]);
-          }
-        } else {
-          gl_serial_command_history_length++;
-        }
-//MESH_DEBUG_PRINTLN("D HISTORY_LENGTH=%d", gl_serial_command_history_length);
-        strcpy(gl_serial_command_history[gl_serial_command_history_length - 1], g_serial_command);
-      }
-
-      // history selector goes to the last command always //
-      gl_serial_command_history_selector = gl_serial_command_history_length;
-//MESH_DEBUG_PRINTLN("E HISTORY_LENGTH=%d SELECTOR=%d", gl_serial_command_history_length, gl_serial_command_history_selector);
-      // reset and go for another! //
-      goto loop_serial_console_reset;
-    }
-    Serial.print("# ");
-  } else if (0x1B == c) {
-      // start a command //
-      gl_serial_command_state = 2;
-  } else {
-    // add chars as typing //
-    if (g_serial_command_len < g_serial_command_size - 1) {
-      g_serial_command[g_serial_command_len++] = c;
-      g_serial_command[g_serial_command_len] = '\0';
-      Serial.print(c);
-    }
-  }
-}
-
 // Helper function to calculate total size of MQTT fields for file format compatibility
 // Uses NodePrefs struct to get accurate field sizes
 static size_t getMQTTFieldsSize(const NodePrefs* prefs) {
@@ -639,6 +484,12 @@ void CommonCLI::loadPrefsJson(FILESYSTEM *fs) {
             String str = config_doc["wifi"]["ssid"].as<String>();
             str.toCharArray(_prefs->wifi_ssid, sizeof(_prefs->wifi_ssid));
         }
+        if (config_doc["wifi"].containsKey("telnet_enabled")) {
+            _prefs->wifi_telnet_enabled = config_doc["wifi"]["telnet_enabled"].as<bool>() ? 1 : 0;
+        }
+        if (config_doc["wifi"].containsKey("telnet_timeout")) {
+            _prefs->wifi_telnet_timeout = config_doc["wifi"]["telnet_timeout"].as<uint32_t>();
+        }
     }
 
     file.close();
@@ -791,6 +642,8 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
       wifi["power_save"] = "max";
   }
   wifi["ssid"] = _prefs->wifi_ssid;
+  wifi["telnet_enabled"] = _prefs->wifi_telnet_enabled ? true : false;
+  wifi["telnet_timeout"] = _prefs->wifi_telnet_timeout;
 #endif
 
   // write out //
@@ -849,11 +702,13 @@ void CommonCLI::setMQTTPrefsDefaults() {
   _prefs->mqtt_analyzer_us_enabled = 1; // enabled by default
   _prefs->mqtt_analyzer_eu_enabled = 1; // enabled by default
   _prefs->wifi_power_save = 0; // Default to WIFI_PS_MIN_MODEM (0=min)
-  _prefs->mqtt_remote_enabled = 0;      // Off by default
-  _prefs->mqtt_use_acl = 1;              // Use ACL by default
+  _prefs->mqtt_remote_enabled = 0;    // Off by default
+  _prefs->mqtt_use_acl = 1;           // Use ACL by default
   _prefs->mqtt_admin_public_key[0] = '\0'; // Empty by default
-  _prefs->wifi_ntp_enabled = 1;        // enabled by default
+  _prefs->wifi_ntp_enabled = 1;       // enabled by default
   strncpy(_prefs->wifi_ntp_server, "pool.ntp.org", sizeof(_prefs->wifi_ntp_server));
+  _prefs->wifi_telnet_enabled = 0;    // telnet disabled by default
+  _prefs->wifi_telnet_timeout = 300;  // telnet timeout is 300 seconds by default
 
   // String fields are already zero-initialized by memset
 }
@@ -1691,8 +1546,12 @@ handleCommandHelpDisable:
         goto handleCommandDisabledAndSave;
       } else if (strcmp(config, "wifi.powersave") == 0) {
         if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->wifi_power_save = 1;
+        _prefs->wifi_power_save = 0;
         goto handleCommandDisabledAndSave;
+      } else if (strcmp(config, "wifi.telnet") == 0) {
+        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        _prefs->wifi_telnet_enabled = 0;
+        goto handleCommandDisabledAndSaveNeedReboot;
 #endif
       } else {
           strcpy(reply, "> unknown feature");
@@ -1822,7 +1681,7 @@ handleCommandSetRadioSave:
           // set united states radio settings //
           _prefs->freq = 910.525;
           _prefs->bw = 62.5;
-          _prefs->sf = 8;
+          _prefs->sf = 7;
           _prefs->cr = 5;
           goto handleCommandSetRadioSave;
         } else {
@@ -2123,6 +1982,17 @@ handleCommandSetRadioSave:
                   sprintf(reply, "OK - saved as %s", ps_name);
                   #endif
                 }
+              } else if (memcmp(config, "wifi.telnet.enabled ", 20) == 0) {
+                if (0 != sender_timestamp) goto handleCommandDenied;
+                _prefs->wifi_telnet_enabled = strcmp(&config[20], "on") == 0;
+                if (!_prefs->wifi_telnet_enabled) goto handleCommandDisabledAndSaveNeedReboot;
+                savePrefs();
+                strcpy(reply, "OK - Enabled telnet. Reboot is required.");
+              } else if (memcmp(config, "wifi.telnet.timeout ", 20) == 0) {
+                if (0 != sender_timestamp) goto handleCommandDenied;
+                _prefs->wifi_telnet_timeout = atoi(&config[20]);
+                savePrefs();
+                strcpy(reply, "OK");
               } else if (memcmp(config, "timezone.string ", 16) == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 StrHelper::strncpy(_prefs->timezone_string, &config[9], sizeof(_prefs->timezone_string));
@@ -2415,6 +2285,10 @@ handleCommandClearedAndSave:
     return;
 handleCommandDisabledAndSave:
     strcpy(reply, "OK: Disabled");
+    savePrefs();
+    return;
+handleCommandDisabledAndSaveNeedReboot:
+    strcpy(reply, "OK: Disabled - Reboot is required.");
     savePrefs();
     return;
 }

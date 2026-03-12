@@ -23,7 +23,10 @@ public:
  * \brief  The next layer in the basic Dispatcher task, Mesh recognises the particular Payload TYPES,
  *     and provides virtual methods for sub-classes on handling incoming, and also preparing outbound Packets.
 */
+
 class Mesh : public Dispatcher {
+  friend class MyMesh;
+
   RTCClock* _rtc;
   RNG* _rng;
   MeshTables* _tables;
@@ -192,6 +195,10 @@ public:
   Packet* createRawData(const uint8_t* data, size_t len);
   Packet* createTrace(uint32_t tag, uint32_t auth_code, uint8_t flags = 0);
   Packet* createControlData(const uint8_t* data, size_t len);
+
+  virtual const char* getNodeName();
+  virtual const char* getNodePrefPassword();
+  virtual const uint32_t getPrefWifiTelnetTimeout();
 
   virtual void handleCommand(uint32_t sender_timestamp, char* command, char* reply);
 

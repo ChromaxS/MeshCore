@@ -620,8 +620,18 @@ Packet* Mesh::createControlData(const uint8_t* data, size_t len) {
   return packet;
 }
 
-void Mesh::handleCommand(uint32_t sender_timestamp, char* command, char* reply)
-{
+
+const char *Mesh::getNodeName() {
+  return nullptr;
+}
+
+const char* Mesh::getNodePrefPassword() {
+  return nullptr;
+}
+
+const uint32_t Mesh::getPrefWifiTelnetTimeout() { return 0; }
+
+void Mesh::handleCommand(uint32_t sender_timestamp, char* command, char* reply) {
   // do nothing //
 }
 

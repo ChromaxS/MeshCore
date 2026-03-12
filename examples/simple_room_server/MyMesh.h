@@ -198,10 +198,12 @@ public:
   const char* getFirmwareVer() override { return FIRMWARE_VERSION; }
   const char* getBuildDate() override { return FIRMWARE_BUILD_DATE; }
   const char* getRole() override { return FIRMWARE_ROLE; }
-  const char* getNodeName() { return _prefs.node_name; }
+  const char* getNodeName() override { return _prefs.node_name; }
+  const char* getNodePrefPassword() override { return _prefs.password; }
   NodePrefs* getNodePrefs() {
     return &_prefs;
   }
+  const uint32_t getPrefWifiTelnetTimeout() override { return _prefs.wifi_telnet_timeout; }
 
   void savePrefs() override {
     _cli.savePrefs(_fs);
