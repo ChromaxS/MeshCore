@@ -1306,6 +1306,33 @@ Gets the WiFi status. In protected mode the SSID is hidden.
 
 **Default:** None
 
+---
+
+### Telnet Server
+**Usage:**
+- `disable wifi.telnet`
+- `get wifi.telnet.enabled`
+- `set wifi.telnet.enabled <enabled>`
+
+**Parameters:**
+- `enabled`: on for enabled and off for disabled
+
+**Default:** off
+
+**Serial Only:** Yes
+
+---
+
+### Telnet Server timeout
+**Usage:**
+- `get wifi.telnet.timeout`
+- `set wifi.telnet.timeout <seconds>`
+
+**Parameters:**
+- `seconds`: timeout in seconds
+
+**Default:** 300
+
 ## Debug
 
 ### Emit noise floor to console

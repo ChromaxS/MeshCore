@@ -1315,6 +1315,10 @@ handleCommand_protected_cleared:
                 uint8_t ps = _prefs->wifi_power_save;
                 const char* ps_name = (ps == 1) ? "none" : (ps == 2) ? "max" : "min";
                 sprintf(reply, "> %s", ps_name);
+              } else if (strcmp(config, "wifi.telnet.enabled") == 0) {
+                sprintf(reply, "> %s", _prefs->wifi_telnet_enabled ? "on" : "off");
+              } else if (strcmp(config, "wifi.telnet.timeout") == 0) {
+                sprintf(reply, "> %d second(s)", _prefs->wifi_telnet_timeout);
               } else if (strcmp(config, "timezone.offset") == 0) {
                 sprintf(reply, "> %d", _prefs->timezone_offset);
               } else if (strcmp(config, "timezone.string") == 0) {
@@ -1552,7 +1556,7 @@ handleCommandHelpDisable:
         _prefs->wifi_power_save = 0;
         goto handleCommandDisabledAndSave;
       } else if (strcmp(config, "wifi.telnet") == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
+        if (0 != sender_timestamp) goto handleCommandDenied;
         _prefs->wifi_telnet_enabled = 0;
         goto handleCommandDisabledAndSaveNeedReboot;
 #endif
