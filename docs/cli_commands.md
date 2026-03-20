@@ -946,7 +946,9 @@ region save
 
 **Serial or Protected Mode Only:** Setting only
 
-**Note:** Output format: `{status}, {fix}, {sat count}` (when enabled)
+**Note:** Output format:
+- `off` when the GPS hardware is disabled
+- `on, {active|deactivated}, {fix|no fix}, {sat count} sats` when the GPS hardware is enabled
 
 ---
 
