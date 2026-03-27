@@ -37,7 +37,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION
-  #define FIRMWARE_VERSION   "v1.14.1-mqtt-observer/chro-1"
+  #define FIRMWARE_VERSION   "v1.14.1-mqtt-observer@chro-2"
 #endif
 
 #define FIRMWARE_ROLE "sensor"
