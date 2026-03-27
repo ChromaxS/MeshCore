@@ -1009,7 +1009,7 @@ handleCommandHelpSections:
         if (strcmp(section, "admin") == 0) {
           strcpy(reply, "Possible: board, clkreboot, clock sync, erase,\n"
             "  guest.password, memory, password[.protected],\n"
-            "  powersaving, [temp]radio[.lna], reboot, start ota, time, ver\n"
+            "  powersaving, [temp]radio[.txgain], reboot, start ota, time, ver\n"
           );
         } else if (strcmp(section, "clear") == 0) {
           goto handleCommandHelpClear;
