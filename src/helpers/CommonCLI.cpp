@@ -492,7 +492,7 @@ void CommonCLI::loadPrefsJson(FILESYSTEM *fs) {
             _prefs->wifi_telnet_enabled = config_doc["wifi"]["telnet_enabled"].as<bool>() ? 1 : 0;
         }
         if (config_doc["wifi"].containsKey("telnet_timeout")) {
-            _prefs->wifi_telnet_timeout = config_doc["wifi"]["telnet_timeout"].as<uint32_t>();
+            _prefs->wifi_telnet_timeout = config_doc["wifi"]["telnet_timeout"].as<uint16_t>();
         }
     }
 
@@ -2018,7 +2018,7 @@ handleCommandSetRadioSave:
                 if (0 != sender_timestamp) goto handleCommandDenied;
                 _prefs->wifi_telnet_timeout = _atoi(&config[20]);
                 savePrefs();
-                strcpy(reply, "OK");
+                sprintf(reply, "OK - %d second(s) timeout set", _prefs->wifi_telnet_timeout);
               } else if (memcmp(config, "timezone.string ", 16) == 0) {
                 if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
                 StrHelper::strncpy(_prefs->timezone_string, &config[9], sizeof(_prefs->timezone_string));

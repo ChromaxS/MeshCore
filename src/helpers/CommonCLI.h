@@ -83,13 +83,13 @@ struct NodePrefs { // persisted to file
   uint32_t mqtt_status_interval; // Status publish interval (ms)
 
   // WiFi settings
-  uint8_t wifi_ntp_enabled;    // WiFi enable NTP
-  char wifi_ntp_server[32];    // WiFi NTP server (e.g. pool.ntp.org)
-  char wifi_ssid[32];          // WiFi SSID
-  char wifi_password[64];      // WiFi password
-  uint8_t wifi_power_save;     // WiFi power save mode: 0=min, 1=none, 2=max (default: 0=min)
-  uint8_t wifi_telnet_enabled; // WiFi telnet server enabled
-  uint8_t wifi_telnet_timeout; // WiFi telnet server timeout
+  uint8_t wifi_ntp_enabled;     // WiFi enable NTP
+  char wifi_ntp_server[32];     // WiFi NTP server (e.g. pool.ntp.org)
+  char wifi_ssid[32];           // WiFi SSID
+  char wifi_password[64];       // WiFi password
+  uint8_t wifi_power_save;      // WiFi power save mode: 0=min, 1=none, 2=max (default: 0=min)
+  uint8_t wifi_telnet_enabled;  // WiFi telnet server enabled
+  uint16_t wifi_telnet_timeout; // WiFi telnet server timeout
 
   // Timezone settings
   int8_t timezone_offset;   // Timezone offset in hours (-12 to +14) - fallback
