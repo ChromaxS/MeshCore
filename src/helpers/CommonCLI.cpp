@@ -2013,7 +2013,7 @@ handleCommandSetRadioSave:
                 strcpy(reply, "OK - Enabled telnet. Reboot is required.");
               } else if (memcmp(config, "wifi.telnet.timeout ", 20) == 0) {
                 if (0 != sender_timestamp) goto handleCommandDenied;
-                _prefs->wifi_telnet_timeout = atoi(&config[20]);
+                _prefs->wifi_telnet_timeout = _atoi(&config[20]);
                 savePrefs();
                 strcpy(reply, "OK");
               } else if (memcmp(config, "timezone.string ", 16) == 0) {
