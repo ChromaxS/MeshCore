@@ -345,6 +345,9 @@ void CommonCLI::loadPrefsJson(FILESYSTEM *fs) {
         if (config_doc["radio"].containsKey("tx_power_dbm")) {
             _prefs->tx_power_dbm = config_doc["radio"]["tx_power_dbm"].as<uint8_t>();
         }
+        if (config_doc["radio"].containsKey("rx_boosted_gain")) {
+            _prefs->rx_boosted_gain = config_doc["radio"]["rx_boosted_gain"].as<uint8_t>();
+        }
         if (config_doc["radio"].containsKey("rx_delay_base")) {
             _prefs->rx_delay_base = config_doc["radio"]["rx_delay_base"].as<float>();
         }
