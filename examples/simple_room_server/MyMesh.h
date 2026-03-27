@@ -35,7 +35,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION
-  #define FIRMWARE_VERSION   "v1.14.1-mqtt-observer@chro-2"
+  #define FIRMWARE_VERSION   "v1.14.1-mqtt-observer@chro-3"
 #endif
 
 #ifndef LORA_FREQ
