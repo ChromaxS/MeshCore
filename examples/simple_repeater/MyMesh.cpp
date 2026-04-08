@@ -1390,7 +1390,7 @@ void MyMesh::loop() {
   mesh::Mesh::loop();
 
   // do it with a goto so we can still merge upstream nicely //
-  if (!_prefs.silent_running) goto loop_skip_adverts;
+  if (_prefs.silent_running) goto loop_skip_adverts;
 
   if (next_flood_advert && millisHasNowPassed(next_flood_advert)) {
     mesh::Packet *pkt = createSelfAdvert();
