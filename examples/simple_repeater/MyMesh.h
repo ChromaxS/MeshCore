@@ -73,11 +73,11 @@ struct NeighbourInfo {
 };
 
 #ifndef FIRMWARE_BUILD_DATE
-  #define FIRMWARE_BUILD_DATE   "26 Mar 2026"
+  #define FIRMWARE_BUILD_DATE   "8 Apr 2026"
 #endif
 
 #ifndef FIRMWARE_VERSION
-  #define FIRMWARE_VERSION   "v1.14.1-mqtt-observer@chro-3"
+  #define FIRMWARE_VERSION   "v1.14.1-mqtt-observer@chro-4"
 #endif
 
 #define FIRMWARE_ROLE "repeater"
