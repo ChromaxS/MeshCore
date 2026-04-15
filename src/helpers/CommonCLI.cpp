@@ -1062,7 +1062,7 @@ handleCommandHelpSections:
         } else {
             goto handleCommandHelpSections;
         }
-    } else if (memcmp(command, "poweroff", 8) == 0 || memcmp(command, "shutdown", 8) == 0) {
+    } else if (strcmp(command, "poweroff") == 0 || strcmp(command, "shutdown") == 0) {
       if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
       _board->powerOff();  // doesn't return
     } else if (strcmp(command, "reboot") == 0) {
@@ -1168,290 +1168,8 @@ handleCommand_protected_cleared:
       StrHelper::strncpy(_prefs->password, &command[9], sizeof(_prefs->password));
       savePrefs();
       sprintf(reply, "password now: %s", _prefs->password);   // echo back just to let admin know for sure!!
-    /*
-     * GET commands
-     */
     } else if (memcmp(command, "get ", 4) == 0) {
-      const char* config = &command[4];
-      if (memcmp(config, "dutycycle", 9) == 0) {
-        float dc = 100.0f / (_prefs->airtime_factor + 1.0f);
-        int dc_int = (int)dc;
-        int dc_frac = (int)((dc - dc_int) * 10.0f + 0.5f);
-        sprintf(reply, "> %d.%d%%", dc_int, dc_frac);
-      } else if (strcmp(config, "af") == 0) {
-        sprintf(reply, "> %s (deprecated, use 'get dutycycle')", StrHelper::ftoa(_prefs->airtime_factor));
-      } else if (strcmp(config, "int.thresh") == 0) {
-        sprintf(reply, "> %d", (uint32_t) _prefs->interference_threshold);
-      } else if (strcmp(config, "agc.reset.interval") == 0) {
-        sprintf(reply, "> %d", ((uint32_t) _prefs->agc_reset_interval) * 4);
-      } else if (strcmp(config, "multi.acks") == 0) {
-        sprintf(reply, "> %d", (uint32_t) _prefs->multi_acks);
-      } else if (strcmp(config, "allow.read.only") == 0) {
-        sprintf(reply, "> %s", _prefs->allow_read_only ? "on" : "off");
-      } else if (strcmp(config, "flood.advert.interval") == 0) {
-        sprintf(reply, "> %d", ((uint32_t) _prefs->flood_advert_interval));
-      } else if (strcmp(config, "silent") == 0) {
-          if (_prefs->silent_running) {
-              strcpy(reply, "> ");
-              strcpy(reply, REPLY_SILENT_RUNNING_ON);
-          } else {
-              strcpy(reply, "> ");
-              strcat(reply, REPLY_SILENT_RUNNING_OFF);
-          }
-      } else if (strcmp(config, "advert.interval") == 0) {
-        sprintf(reply, "> %d", ((uint32_t) _prefs->advert_interval) * 2);
-      } else if (strcmp(config, "guest.password") == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        sprintf(reply, "> %s", _prefs->guest_password);
-      } else if (strcmp(config, "prv.key") == 0) {  // from serial command line only
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        uint8_t prv_key[PRV_KEY_SIZE];
-        int len = _callbacks->getSelfId().writeTo(prv_key, PRV_KEY_SIZE);
-        mesh::Utils::toHex(tmp, prv_key, len);
-        sprintf(reply, "> %s", tmp);
-      } else if (strcmp(config, "name") == 0) {
-        sprintf(reply, "> %s", _prefs->node_name);
-      } else if (strcmp(config, "repeat") == 0) {
-        sprintf(reply, "> %s", _prefs->disable_fwd ? "off" : "on");
-      } else if (strcmp(config, "lat") == 0) {
-        sprintf(reply, "> %s", StrHelper::ftoa(_prefs->node_lat));
-      } else if (strcmp(config, "lon") == 0) {
-        sprintf(reply, "> %s", StrHelper::ftoa(_prefs->node_lon));
-      } else if (strcmp(config, "radio") == 0) {
-        char freq[16], bw[16];
-        strcpy(freq, StrHelper::ftoa(_prefs->freq));
-        strcpy(bw, StrHelper::ftoa3(_prefs->bw));
-        sprintf(reply, "> %s,%s,%d,%d", freq, bw, (uint32_t)_prefs->sf, (uint32_t)_prefs->cr);
-#if defined(USE_SX1262) || defined(USE_SX1268)
-      } else if (strcmp(config, "radio.rxgain") == 0) {
-        sprintf(reply, "> %s", _prefs->rx_boosted_gain ? "on" : "off");
-#endif
-      } else if (strcmp(config, "rxdelay") == 0) {
-        sprintf(reply, "> %s", StrHelper::ftoa(_prefs->rx_delay_base));
-      } else if (strcmp(config, "txdelay") == 0) {
-        sprintf(reply, "> %s", StrHelper::ftoa(_prefs->tx_delay_factor));
-      } else if (strcmp(config, "flood.max") == 0) {
-        sprintf(reply, "> %d", (uint32_t)_prefs->flood_max);
-      } else if (strcmp(config, "direct.txdelay") == 0) {
-        sprintf(reply, "> %s", StrHelper::ftoa(_prefs->direct_tx_delay_factor));
-      } else if (strcmp(config, "owner.info") == 0) {
-        *reply++ = '>';
-        *reply++ = ' ';
-        const char* sp = _prefs->owner_info;
-        while (*sp) {
-          *reply++ = (*sp == '\n') ? '|' : *sp;    // translate newline back to orig '|'
-          sp++;
-        }
-        *reply = 0;  // set null terminator
-      } else if (strcmp(config, "path.hash.mode") == 0) {
-        sprintf(reply, "> %d", (uint32_t)_prefs->path_hash_mode);
-      } else if (strcmp(config, "loop.detect") == 0) {
-        if (_prefs->loop_detect == LOOP_DETECT_OFF) {
-          strcpy(reply, "> off");
-        } else if (_prefs->loop_detect == LOOP_DETECT_MINIMAL) {
-          strcpy(reply, "> minimal");
-        } else if (_prefs->loop_detect == LOOP_DETECT_MODERATE) {
-          strcpy(reply, "> moderate");
-        } else {
-          strcpy(reply, "> strict");
-        }
-      } else if (strcmp(config, "tx") == 0 && (config[2] == 0 || config[2] == ' ')) {
-        sprintf(reply, "> %d", (int32_t) _prefs->tx_power_dbm);
-      } else if (strcmp(config, "freq") == 0) {
-        sprintf(reply, "> %s", StrHelper::ftoa(_prefs->freq));
-      } else if (strcmp(config, "public.key") == 0) {
-        strcpy(reply, "> ");
-        mesh::Utils::toHex(&reply[2], _callbacks->getSelfId().pub_key, PUB_KEY_SIZE);
-      } else if (strcmp(config, "role") == 0) {
-        sprintf(reply, "> %s", _callbacks->getRole());
-      } else if (strcmp(config, "bridge.type") == 0) {
-        sprintf(reply, "> %s",
-#ifdef WITH_RS232_BRIDGE
-                "rs232"
-#elif WITH_ESPNOW_BRIDGE
-                "espnow"
-#else
-                "none"
-#endif
-        );
-#ifdef WITH_BRIDGE
-      } else if (strcmp(config, "bridge.enabled") == 0) {
-        sprintf(reply, "> %s", _prefs->bridge_enabled ? "on" : "off");
-      } else if (strcmp(config, "bridge.delay") == 0) {
-        sprintf(reply, "> %d", (uint32_t)_prefs->bridge_delay);
-      } else if (strcmp(config, "bridge.source") == 0) {
-        sprintf(reply, "> %s", _prefs->bridge_pkt_src ? "logRx" : "logTx");
-#endif
-#ifdef WITH_RS232_BRIDGE
-      } else if (strcmp(config, "bridge.baud") == 0) {
-        sprintf(reply, "> %d", (uint32_t)_prefs->bridge_baud);
-#endif
-#ifdef WITH_ESPNOW_BRIDGE
-      } else if (strcmp(config, "bridge.channel") == 0) {
-        sprintf(reply, "> %d", (uint32_t)_prefs->bridge_channel);
-      } else if (strcmp(config, "bridge.secret") == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        sprintf(reply, "> %s", _prefs->bridge_secret);
-#endif
-#ifdef WITH_MQTT_BRIDGE
-      } else if (strcmp(config, "mqtt.origin") == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        sprintf(reply, "> %s", _prefs->mqtt_origin);
-      } else if (strcmp(config, "mqtt.iata") == 0) {
-        sprintf(reply, "> %s", _prefs->mqtt_iata);
-      } else if (strcmp(config, "mqtt.status") == 0) {
-        sprintf(reply, "> %s", _prefs->mqtt_status_enabled ? "on" : "off");
-      } else if (strcmp(config, "mqtt.packets") == 0) {
-        sprintf(reply, "> %s", _prefs->mqtt_packets_enabled ? "on" : "off");
-              } else if (strcmp(config, "mqtt.raw") == 0) {
-                sprintf(reply, "> %s", _prefs->mqtt_raw_enabled ? "on" : "off");
-              } else if (strcmp(config, "mqtt.tx") == 0) {
-                sprintf(reply, "> %s", _prefs->mqtt_tx_enabled ? "on" : "off");
-              } else if (strcmp(config, "mqtt.interval") == 0) {
-                // Display interval in minutes (rounded)
-                uint32_t minutes = (_prefs->mqtt_status_interval + 29999) / 60000; // Round up
-                sprintf(reply, "> %u minutes (%lu ms)", minutes, _prefs->mqtt_status_interval);
-              } else if (strcmp(config, "mqtt.server") == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                sprintf(reply, "> %s", _prefs->mqtt_server);
-              } else if (strcmp(config, "mqtt.port") == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                sprintf(reply, "> %d", _prefs->mqtt_port);
-              } else if (strcmp(config, "mqtt.username") == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                sprintf(reply, "> %s", _prefs->mqtt_username);
-              } else if (strcmp(config, "mqtt.password") == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                sprintf(reply, "> %s", _prefs->mqtt_password);
-              } else if (strcmp(config, "wifi.ntp.server") == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                sprintf(reply, "> %s", _prefs->wifi_ntp_server);
-              } else if (strcmp(config, "wifi.ntp.enabled") == 0) {
-                sprintf(reply, "> %s", _prefs->wifi_ntp_enabled ? "on" : "off");
-              } else if (strcmp(config, "wifi.ssid") == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                sprintf(reply, "> %s", _prefs->wifi_ssid);
-              } else if (strcmp(config, "wifi.pwd") == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                sprintf(reply, "> %s", _prefs->wifi_password);
-              } else if (strcmp(config, "wifi.status") == 0) {
-                wl_status_t status = WiFi.status();
-                const char* status_str;
-                switch(status) {
-                  case WL_CONNECTED: status_str = "connected"; break;
-                  case WL_NO_SSID_AVAIL: status_str = "no_ssid"; break;
-                  case WL_CONNECT_FAILED: status_str = "connect_failed"; break;
-                  case WL_CONNECTION_LOST: status_str = "connection_lost"; break;
-                  case WL_DISCONNECTED: status_str = "disconnected"; break;
-                  default: status_str = "unknown"; break;
-                }
-                if (status == WL_CONNECTED) {
-                  if (!allowProtectedCommand(sender_timestamp)) {
-                      sprintf(reply, "> %s, RSSI: %d dBm", status_str, WiFi.RSSI());
-                  } else {
-                      sprintf(reply, "> %s, IP: %s, RSSI: %d dBm", status_str, WiFi.localIP().toString().c_str(), WiFi.RSSI());
-                  }
-                } else {
-                  sprintf(reply, "> %s (code: %d)", status_str, status);
-                }
-              } else if (strcmp(config, "wifi.powersave") == 0) {
-                uint8_t ps = _prefs->wifi_power_save;
-                const char* ps_name = (ps == 1) ? "none" : (ps == 2) ? "max" : "min";
-                sprintf(reply, "> %s", ps_name);
-              } else if (strcmp(config, "wifi.telnet.enabled") == 0) {
-                sprintf(reply, "> %s", _prefs->wifi_telnet_enabled ? "on" : "off");
-              } else if (strcmp(config, "wifi.telnet.timeout") == 0) {
-                sprintf(reply, "> %d second(s)", _prefs->wifi_telnet_timeout);
-              } else if (strcmp(config, "timezone.offset") == 0) {
-                sprintf(reply, "> %d", _prefs->timezone_offset);
-              } else if (strcmp(config, "timezone.string") == 0) {
-                sprintf(reply, "> %s", _prefs->timezone_string);
-              } else if (strcmp(config, "mqtt.analyzer.us") == 0) {
-                sprintf(reply, "> %s", _prefs->mqtt_analyzer_us_enabled ? "on" : "off");
-              } else if (strcmp(config, "mqtt.analyzer.eu") == 0) {
-                sprintf(reply, "> %s", _prefs->mqtt_analyzer_eu_enabled ? "on" : "off");
-              } else if (strcmp(config, "mqtt.owner") == 0) {  // from serial command line only
-                if (_prefs->mqtt_owner_public_key[0] != '\0') {
-                  sprintf(reply, "> %s", _prefs->mqtt_owner_public_key);
-                } else {
-                  strcpy(reply, "> (not set)");
-                }
-              } else if (strcmp(config, "mqtt.email") == 0) {  // from serial command line only
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-
-                if (_prefs->mqtt_email[0] != '\0') {
-                  sprintf(reply, "> %s", _prefs->mqtt_email);
-                } else {
-                  strcpy(reply, "> (not set)");
-                }
-              } else if (strcmp(config, "mqtt.config.valid") == 0) {
-                bool valid = MQTTBridge::isConfigValid(_prefs);
-                sprintf(reply, "> %s", valid ? "valid" : "invalid");
-              } else if (strcmp(config, "mqtt.remote") == 0) {
-                sprintf(reply, "> %s", _prefs->mqtt_remote_enabled ? "on" : "off");
-              } else if (strcmp(config, "mqtt.useacl") == 0) {
-                sprintf(reply, "> %s", _prefs->mqtt_use_acl ? "on" : "off");
-              } else if (strcmp(config, "mqtt.admin") == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-
-                // Only from serial command line (not remote)
-                if (_prefs->mqtt_admin_public_key[0] != '\0') {
-                  sprintf(reply, "> %s", _prefs->mqtt_admin_public_key);
-                } else {
-                  strcpy(reply, "> (not set)");
-                }
-#endif
-      } else if (strcmp(config, "bootloader.ver") == 0) {
-#ifdef NRF52_PLATFORM
-          char ver[32];
-          if (_board->getBootloaderVersion(ver, sizeof(ver))) {
-              sprintf(reply, "> %s", ver);
-          } else {
-              strcpy(reply, "> unknown");
-          }
-#else
-          strcpy(reply, "ERROR: unsupported");
-#endif
-      } else if (strcmp(config, "adc.multiplier") == 0) {
-        float adc_mult = _board->getAdcMultiplier();
-        if (adc_mult == 0.0f) {
-          strcpy(reply, "Error: unsupported by this board");
-        } else {
-          sprintf(reply, "> %.3f", adc_mult);
-        }
-      // Power management commands
-      } else if (strcmp(config, "pwrmgt.support") == 0) {
-#ifdef NRF52_POWER_MANAGEMENT
-        strcpy(reply, "> supported");
-#else
-        strcpy(reply, "> unsupported");
-#endif
-      } else if (strcmp(config, "pwrmgt.source") == 0) {
-#ifdef NRF52_POWER_MANAGEMENT
-        strcpy(reply, _board->isExternalPowered() ? "> external" : "> battery");
-#else
-        strcpy(reply, "ERROR: Power management not supported");
-#endif
-      } else if (strcmp(config, "pwrmgt.bootreason") == 0) {
-#ifdef NRF52_POWER_MANAGEMENT
-        sprintf(reply, "> Reset: %s; Shutdown: %s",
-          _board->getResetReasonString(_board->getResetReason()),
-          _board->getShutdownReasonString(_board->getShutdownReason()));
-#else
-        strcpy(reply, "ERROR: Power management not supported");
-#endif
-      } else if (strcmp(config, "pwrmgt.bootmv") == 0) {
-#ifdef NRF52_POWER_MANAGEMENT
-        sprintf(reply, "> %u mV", _board->getBootVoltage());
-#else
-        strcpy(reply, "ERROR: Power management not supported");
-#endif
-      } else {
-        sprintf(reply, "??: %s", config);
-      }
-    /*
-    * CLEAR commands
-    */
+      handleGetCmd(sender_timestamp, &command[4], reply);
     } else if (strcmp(command, "clear") == 0) {
 handleCommandHelpClear:
       // this is near 160 characters DO NOT ADD MORE //
@@ -1606,566 +1324,10 @@ handleCommandHelpDisable:
       } else {
           strcpy(reply, "> unknown feature");
       }
-    /*
-     * SET commands
-     */
     } else if (memcmp(command, "set ", 4) == 0) {
-      const char* config = &command[4];
-      if (memcmp(config, "allow.protected ", 16) == 0) {
-        if (*_prefs->password_protected &&
-            strcmp(&config[16], _prefs->password_protected) == 0)
-        {
-            gl_allow_protected_over_remote = getRTCClock()->getCurrentTime();
-            sprintf(reply, "OK: protected mode enabled for %d second(s)", PROTECTED_TIME_DURATION);
-        } else {
-            strcpy(reply, "Invalid protected command!");
-        }
-      } else if (memcmp(config, "dutycycle ", 10) == 0) {
-        float dc = atof(&config[10]);
-        if (dc < 10 || dc > 100) {
-          strcpy(reply, "ERROR: dutycycle must be 10-100");
-        } else {
-          _prefs->airtime_factor = (100.0f / dc) - 1.0f;
-          savePrefs();
-          float actual = 100.0f / (_prefs->airtime_factor + 1.0f);
-          int a_int = (int)actual;
-          int a_frac = (int)((actual - a_int) * 10.0f + 0.5f);
-          sprintf(reply, "OK - %d.%d%%", a_int, a_frac);
-        }
-      } else if (memcmp(config, "af ", 3) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->airtime_factor = atof(&config[3]);
-        savePrefs();
-        float actual = 100.0f / (_prefs->airtime_factor + 1.0f);
-        int a_int = (int)actual;
-        int a_frac = (int)((actual - a_int) * 10.0f + 0.5f);
-        sprintf(reply, "OK - %d.%d%% (deprecated, use 'set dutycycle')", a_int, a_frac);
-      } else if (memcmp(config, "int.thresh ", 11) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->interference_threshold = atoi(&config[11]);
-        savePrefs();
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "agc.reset.interval ", 19) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->agc_reset_interval = atoi(&config[19]) / 4;
-        savePrefs();
-        sprintf(reply, "OK - interval rounded to %d", ((uint32_t) _prefs->agc_reset_interval) * 4);
-      } else if (memcmp(config, "multi.acks ", 11) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->multi_acks = atoi(&config[11]);
-        savePrefs();
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "allow.read.only ", 16) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->allow_read_only = memcmp(&config[16], "on", 2) == 0;
-        savePrefs();
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "flood.advert.interval ", 22) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        int hours = _atoi(&config[22]);
-        if ((hours > 0 && hours < 3) || (hours > 168)) {
-          strcpy(reply, "Error: interval range is 3-168 hours");
-        } else {
-          _prefs->flood_advert_interval = (uint8_t)(hours);
-          _callbacks->updateFloodAdvertTimer();
-          savePrefs();
-          strcpy(reply, "OK");
-        }
-      } else if (memcmp(config, "silent ", 7) == 0) {
-          if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-          _prefs->silent_running = strcmp(&config[7], "on") == 0;
-          if (_prefs->silent_running) {
-              strcpy(reply, "OK - Silent Running (ignores discovery requests and sends no advertisements)");
-          } else {
-handleCommandSilentCleared:
-              strcpy(reply, "OK - Regular Running");
-          }
-      } else if (memcmp(config, "advert.interval ", 16) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        int mins = _atoi(&config[16]);
-        if ((mins > 0 && mins < MIN_LOCAL_ADVERT_INTERVAL) || (mins > 240)) {
-          sprintf(reply, "Error: interval range is %d-240 minutes", MIN_LOCAL_ADVERT_INTERVAL);
-        } else {
-          _prefs->advert_interval = (uint8_t)(mins / 2);
-          _callbacks->updateAdvertTimer();
-          savePrefs();
-          strcpy(reply, "OK");
-        }
-      } else if (memcmp(config, "guest.password ", 15) == 0) {
-        StrHelper::strncpy(_prefs->guest_password, &config[15], sizeof(_prefs->guest_password));
-        savePrefs();
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "prv.key ", 8) == 0) {
-        if (0 != sender_timestamp) goto handleCommandDenied;
-
-        uint8_t prv_key[PRV_KEY_SIZE];
-        bool success = mesh::Utils::fromHex(prv_key, PRV_KEY_SIZE, &config[8]);
-        // only allow rekey if key is valid
-        if (success && mesh::LocalIdentity::validatePrivateKey(prv_key)) {
-          mesh::LocalIdentity new_id;
-          new_id.readFrom(prv_key, PRV_KEY_SIZE);
-          _callbacks->saveIdentity(new_id);
-          strcpy(reply, "OK, reboot to apply! New pubkey: ");
-          mesh::Utils::toHex(&reply[33], new_id.pub_key, PUB_KEY_SIZE);
-        } else {
-          strcpy(reply, "Error, bad key");
-        }
-      } else if (memcmp(config, "name ", 5) == 0) {
-        if (0 != sender_timestamp) goto handleCommandDenied;
-        if (isValidName(&config[5])) {
-          StrHelper::strncpy(_prefs->node_name, &config[5], sizeof(_prefs->node_name));
-          savePrefs();
-          strcpy(reply, "OK");
-        } else {
-          strcpy(reply, "Error, bad chars");
-        }
-      } else if (memcmp(config, "repeat ", 7) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->disable_fwd = memcmp(&config[7], "off", 3) == 0;
-        savePrefs();
-        strcpy(reply, _prefs->disable_fwd ? "OK - repeat is now OFF" : "OK - repeat is now ON");
-#if defined(USE_SX1262) || defined(USE_SX1268)
-      } else if (memcmp(config, "radio.rxgain ", 13) == 0) {
-        _prefs->rx_boosted_gain = memcmp(&config[13], "on", 2) == 0;
-        strcpy(reply, "OK");
-        savePrefs();
-        _callbacks->setRxBoostedGain(_prefs->rx_boosted_gain);
-#endif
-      } else if (memcmp(config, "radio ", 6) == 0) {
-        if (0 != sender_timestamp) goto handleCommandDenied;
-        if (strcmp(&config[6], "au") == 0) {
-          // set austrailia/new zealand radio settings //
-          _prefs->freq = 915.8;
-          _prefs->bw = 250.0;
-          _prefs->sf = 10;
-          _prefs->cr = 5;
-handleCommandSetRadioSave:
-          _callbacks->savePrefs();
-          strcpy(reply, "OK - reboot to apply");
-        } else if (strcmp(&config[6], "eu") == 0) {
-          // set us radio settings //
-          _prefs->freq = 869.525;
-          _prefs->bw = 250.0;
-          _prefs->sf = 11;
-          _prefs->cr = 5;
-          goto handleCommandSetRadioSave;
-        } else if (strcmp(&config[6], "us") == 0) {
-          // set united states radio settings //
-          _prefs->freq = 910.525;
-          _prefs->bw = 62.5;
-          _prefs->sf = 7;
-          _prefs->cr = 5;
-          goto handleCommandSetRadioSave;
-        } else {
-          strcpy(tmp, &config[6]);
-          const char *parts[4];
-          int num = mesh::Utils::parseTextParts(tmp, parts, 4);
-          float freq  = num > 0 ? strtof(parts[0], nullptr) : 0.0f;
-          float bw    = num > 1 ? strtof(parts[1], nullptr) : 0.0f;
-          uint8_t sf  = num > 2 ? atoi(parts[2]) : 0;
-          uint8_t cr  = num > 3 ? atoi(parts[3]) : 0;
-          if (freq >= 150.0f && freq <= 2500.0f && sf >= 5 && sf <= 12 && cr >= 5 && cr <= 8 && bw >= 7.0f && bw <= 500.0f) {
-            _prefs->sf = sf;
-            _prefs->cr = cr;
-            _prefs->freq = freq;
-            _prefs->bw = bw;
-            goto handleCommandSetRadioSave;
-          } else {
-            strcpy(reply, "Error, invalid radio params: au, eu, us, or freq,bw,sf,cr");
-          }
-        }
-      } else if (memcmp(config, "lat ", 4) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->node_lat = atof(&config[4]);
-        savePrefs();
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "lon ", 4) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->node_lon = atof(&config[4]);
-        savePrefs();
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "rxdelay ", 8) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        float db = atof(&config[8]);
-        if (db >= 0) {
-          _prefs->rx_delay_base = db;
-          savePrefs();
-          strcpy(reply, "OK");
-        } else {
-          strcpy(reply, "Error, cannot be negative");
-        }
-      } else if (strcmp(config, "silent") == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->silent_running = 0;
-        goto handleCommandDisabledAndSave;
-        strcat(reply, "OK: ");
-        strcat(reply, REPLY_SILENT_RUNNING_OFF);
-      } else if (memcmp(config, "txdelay ", 8) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        float f = atof(&config[8]);
-        if (f >= 0) {
-          _prefs->tx_delay_factor = f;
-          savePrefs();
-          strcpy(reply, "OK");
-        } else {
-          strcpy(reply, "Error, cannot be negative");
-        }
-      } else if (memcmp(config, "flood.max ", 10) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        uint8_t m = atoi(&config[10]);
-        if (m <= 64) {
-          _prefs->flood_max = m;
-          savePrefs();
-          strcpy(reply, "OK");
-        } else {
-          strcpy(reply, "Error, max 64");
-        }
-      } else if (memcmp(config, "direct.txdelay ", 15) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        float f = atof(&config[15]);
-        if (f >= 0) {
-          _prefs->direct_tx_delay_factor = f;
-          savePrefs();
-          strcpy(reply, "OK");
-        } else {
-          strcpy(reply, "Error, cannot be negative");
-        }
-      } else if (memcmp(config, "owner.info ", 11) == 0) {
-        if (0 != sender_timestamp) goto handleCommandDenied;
-
-        config += 11;
-        char *dp = _prefs->owner_info;
-        while (*config && dp - _prefs->owner_info < sizeof(_prefs->owner_info)-1) {
-          *dp++ = (*config == '|') ? '\n' : *config;    // translate '|' to newline chars
-          config++;
-        }
-        *dp = 0;
-        savePrefs();
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "path.hash.mode ", 15) == 0) {
-        config += 15;
-        uint8_t mode = atoi(config);
-        if (mode < 3) {
-          _prefs->path_hash_mode = mode;
-          savePrefs();
-          strcpy(reply, "OK");
-        } else {
-          strcpy(reply, "Error, must be 0,1, or 2");
-        }
-      } else if (memcmp(config, "loop.detect ", 12) == 0) {
-        config += 12;
-        uint8_t mode;
-        if (strcmp(config, "off") == 0) {
-          mode = LOOP_DETECT_OFF;
-        } else if (strcmp(config, "minimal") == 0) {
-          mode = LOOP_DETECT_MINIMAL;
-        } else if (strcmp(config, "moderate") == 0) {
-          mode = LOOP_DETECT_MODERATE;
-        } else if (strcmp(config, "strict") == 0) {
-          mode = LOOP_DETECT_STRICT;
-        } else {
-          mode = 0xFF;
-          strcpy(reply, "Error, must be: off, minimal, moderate, or strict");
-        }
-        if (mode != 0xFF) {
-          _prefs->loop_detect = mode;
-          savePrefs();
-          strcpy(reply, "OK");
-        }
-      } else if (memcmp(config, "tx ", 3) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->tx_power_dbm = atoi(&config[3]);
-        savePrefs();
-        _callbacks->setTxPower(_prefs->tx_power_dbm);
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "freq ", 5) == 0) {
-        if (0 != sender_timestamp) goto handleCommandDenied;
-
-        _prefs->freq = atof(&config[5]);
-        savePrefs();
-        strcpy(reply, "OK - reboot to apply");
-#ifdef WITH_BRIDGE
-      } else if (memcmp(config, "bridge.enabled ", 15) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->bridge_enabled = strcmp(&config[15], "on") == 0;
-        _callbacks->setBridgeState(_prefs->bridge_enabled);
-        savePrefs();
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "bridge.delay ", 13) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        int delay = _atoi(&config[13]);
-        if (delay >= 0 && delay <= 10000) {
-          _prefs->bridge_delay = (uint16_t)delay;
-          savePrefs();
-          strcpy(reply, "OK");
-        } else {
-          strcpy(reply, "Error: delay must be between 0-10000 ms");
-        }
-      } else if (memcmp(config, "bridge.source ", 14) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->bridge_pkt_src = strcmp(&config[14], "rx") == 0;
-        savePrefs();
-        strcpy(reply, "OK");
-#endif
-#ifdef WITH_RS232_BRIDGE
-      } else if (memcmp(config, "bridge.baud ", 12) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        uint32_t baud = atoi(&config[12]);
-        if (baud >= 9600 && baud <= 115200) {
-          _prefs->bridge_baud = (uint32_t)baud;
-          _callbacks->restartBridge();
-          savePrefs();
-          strcpy(reply, "OK");
-        } else {
-          strcpy(reply, "Error: baud rate must be between 9600-115200");
-        }
-#endif
-#ifdef WITH_ESPNOW_BRIDGE
-      } else if (memcmp(config, "bridge.channel ", 15) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        int ch = atoi(&config[15]);
-        if (ch > 0 && ch < 15) {
-          _prefs->bridge_channel = (uint8_t)ch;
-          _callbacks->restartBridge();
-          savePrefs();
-          strcpy(reply, "OK");
-        } else {
-          strcpy(reply, "Error: channel must be between 1-14");
-        }
-      } else if (memcmp(config, "bridge.secret ", 14) == 0) {
-        StrHelper::strncpy(_prefs->bridge_secret, &config[14], sizeof(_prefs->bridge_secret));
-        _callbacks->restartBridge();
-        savePrefs();
-        strcpy(reply, "OK");
-#endif
-#ifdef WITH_MQTT_BRIDGE
-      } else if (memcmp(config, "mqtt.origin ", 12) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        StrHelper::strncpy(_prefs->mqtt_origin, &config[12], sizeof(_prefs->mqtt_origin));
-        savePrefs();
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "mqtt.iata ", 10) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        StrHelper::strncpy(_prefs->mqtt_iata, &config[10], sizeof(_prefs->mqtt_iata));
-        // Convert IATA code to uppercase (IATA codes are conventionally uppercase)
-        for (int i = 0; _prefs->mqtt_iata[i]; i++) {
-          _prefs->mqtt_iata[i] = toupper(_prefs->mqtt_iata[i]);
-        }
-        savePrefs();
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "mqtt.status ", 12) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->mqtt_status_enabled = memcmp(&config[12], "on", 2) == 0;
-        if (!_prefs->mqtt_status_enabled) goto handleCommandDisabledAndSave;
-        savePrefs();
-        strcpy(reply, "OK");
-      } else if (memcmp(config, "mqtt.packets ", 13) == 0) {
-        if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-        _prefs->mqtt_packets_enabled = strcmp(&config[13], "on") == 0;
-        if (!_prefs->mqtt_packets_enabled) goto handleCommandDisabledAndSave;
-        savePrefs();
-        strcpy(reply, "OK");
-              } else if (memcmp(config, "mqtt.raw ", 9) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                _prefs->mqtt_raw_enabled = strcmp(&config[9], "on") == 0;
-                if (!_prefs->mqtt_raw_enabled) goto handleCommandDisabledAndSave;
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "mqtt.tx ", 8) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                _prefs->mqtt_tx_enabled = strcmp(&config[8], "on") == 0;
-                if (!_prefs->mqtt_tx_enabled) goto handleCommandDisabledAndSave;
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "mqtt.interval ", 14) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                uint32_t minutes = _atoi(&config[14]);
-                if (minutes >= 1 && minutes <= 60) { // 1 minute to 60 minutes
-                  _prefs->mqtt_status_interval = minutes * 60000; // Convert minutes to milliseconds
-                  savePrefs();
-                  // Restart bridge to pick up new interval value
-                  _callbacks->restartBridge();
-                  sprintf(reply, "OK - interval set to %u minutes (%lu ms), bridge restarted", minutes, _prefs->mqtt_status_interval);
-                } else {
-                  strcpy(reply, "Error: interval must be between 1-60 minutes");
-                }
-              } else if (memcmp(config, "wifi.ntp.enabled ", 17) == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                _prefs->wifi_ntp_enabled = strcmp(&config[17], "on") == 0;
-                if (!_prefs->wifi_ntp_enabled) goto handleCommandDisabledAndSave;
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "wifi.ntp.server ", 16) == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                StrHelper::strncpy(_prefs->wifi_ntp_server, &config[16], sizeof(_prefs->wifi_ntp_server));
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "wifi.ssid ", 10) == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                StrHelper::strncpy(_prefs->wifi_ssid, &config[10], sizeof(_prefs->wifi_ssid));
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "wifi.pwd ", 9) == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                StrHelper::strncpy(_prefs->wifi_password, &config[9], sizeof(_prefs->wifi_password));
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "wifi.powersave ", 15) == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                const char* value = &config[15];
-                uint8_t ps_value;
-                bool valid = false;
-                if (strcmp(value, "min") == 0 && (value[3] == 0 || value[3] == ' ')) {
-                  ps_value = 0;
-                  valid = true;
-                } else if (strcmp(value, "none") == 0 && (value[4] == 0 || value[4] == ' ')) {
-                  ps_value = 1;
-                  valid = true;
-                } else if (strcmp(value, "max") == 0 && (value[3] == 0 || value[3] == ' ')) {
-                  ps_value = 2;
-                  valid = true;
-                }
-                
-                if (!valid) {
-                  strcpy(reply, "Error: must be none, min, or max");
-                } else {
-                  _prefs->wifi_power_save = ps_value;
-                  if (1 == _prefs->wifi_power_save) goto handleCommandDisabledAndSave;
-                  savePrefs();
-                  
-                  // Apply immediately if WiFi is connected
-                  #ifdef ESP_PLATFORM
-                  if (WiFi.status() == WL_CONNECTED) {
-                    wifi_ps_type_t ps_mode = (ps_value == 1) ? WIFI_PS_NONE : 
-                                            (ps_value == 2) ? WIFI_PS_MAX_MODEM : WIFI_PS_MIN_MODEM;
-                    esp_err_t ps_result = esp_wifi_set_ps(ps_mode);
-                    if (ps_result == ESP_OK) {
-                      const char* ps_name = (ps_value == 1) ? "none" : (ps_value == 2) ? "max" : "min";
-                      sprintf(reply, "OK - power save set to %s", ps_name);
-                    } else {
-                      sprintf(reply, "OK - saved, but failed to apply: %d", ps_result);
-                    }
-                  } else {
-                    const char* ps_name = (ps_value == 1) ? "none" : (ps_value == 2) ? "max" : "min";
-                    sprintf(reply, "OK - saved as %s (will apply on next WiFi connection)", ps_name);
-                  }
-                  #else
-                  const char* ps_name = (ps_value == 1) ? "none" : (ps_value == 2) ? "max" : "min";
-                  sprintf(reply, "OK - saved as %s", ps_name);
-                  #endif
-                }
-              } else if (memcmp(config, "wifi.telnet.enabled ", 20) == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                _prefs->wifi_telnet_enabled = strcmp(&config[20], "on") == 0;
-                if (!_prefs->wifi_telnet_enabled) goto handleCommandDisabledAndSaveNeedReboot;
-                savePrefs();
-                strcpy(reply, "OK - Enabled telnet. Reboot is required.");
-              } else if (memcmp(config, "wifi.telnet.timeout ", 20) == 0) {
-                if (0 != sender_timestamp) goto handleCommandDenied;
-                _prefs->wifi_telnet_timeout = _atoi(&config[20]);
-                savePrefs();
-                sprintf(reply, "OK - %d second(s) timeout set", _prefs->wifi_telnet_timeout);
-              } else if (memcmp(config, "timezone.string ", 16) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                StrHelper::strncpy(_prefs->timezone_string, &config[9], sizeof(_prefs->timezone_string));
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "timezone.offset ", 16) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                int8_t offset = _atoi(&config[16]);
-                if (offset >= -12 && offset <= 14) {
-                  _prefs->timezone_offset = offset;
-                  savePrefs();
-                  strcpy(reply, "OK");
-                } else {
-                  strcpy(reply, "Error: timezone offset must be between -12 and +14");
-                }
-              } else if (memcmp(config, "mqtt.server ", 12) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                StrHelper::strncpy(_prefs->mqtt_server, &config[12], sizeof(_prefs->mqtt_server));
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "mqtt.port ", 10) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                int port = atoi(&config[10]);
-                if (port > 0 && port <= 65535) {
-                  _prefs->mqtt_port = port;
-                  savePrefs();
-                  strcpy(reply, "OK");
-                } else {
-                  strcpy(reply, "Error: port must be between 1 and 65535");
-                }
-              } else if (memcmp(config, "mqtt.username ", 14) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                StrHelper::strncpy(_prefs->mqtt_username, &config[14], sizeof(_prefs->mqtt_username));
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "mqtt.password ", 14) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                StrHelper::strncpy(_prefs->mqtt_password, &config[14], sizeof(_prefs->mqtt_password));
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "mqtt.analyzer.us ", 17) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                _prefs->mqtt_analyzer_us_enabled = strcmp(&config[17], "on") == 0;
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "mqtt.analyzer.eu ", 17) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                _prefs->mqtt_analyzer_eu_enabled = strcmp(&config[17], "on") == 0;
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "mqtt.owner ", 11) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                // Validate that it's a valid hex string of the correct length (PUB_KEY_SIZE * 2 hex chars = PUB_KEY_SIZE bytes)
-                const char* owner_key = &config[11];
-                if (isValidPublicKeyHex(owner_key)) {
-                  StrHelper::strncpy(_prefs->mqtt_owner_public_key, owner_key, sizeof(_prefs->mqtt_owner_public_key));
-                  savePrefs();
-                  strcpy(reply, "OK");
-                } else {
-                  strcpy(reply, "Error: public key must be 64 hex characters (32 bytes)");
-                }
-              } else if (memcmp(config, "mqtt.email ", 11) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                StrHelper::strncpy(_prefs->mqtt_email, &config[11], sizeof(_prefs->mqtt_email));
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "mqtt.remote ", 12) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                _prefs->mqtt_remote_enabled = memcmp(&config[12], "on", 2) == 0;
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "mqtt.useacl ", 12) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                _prefs->mqtt_use_acl = strcmp(&config[12], "on") == 0;
-                savePrefs();
-                strcpy(reply, "OK");
-              } else if (memcmp(config, "mqtt.admin ", 11) == 0) {
-                if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
-                const char* admin_key = &config[11];
-                if (strcmp(admin_key, "0") == 0) {
-                  // Clear the admin key
-                  _prefs->mqtt_admin_public_key[0] = '\0';
-                  savePrefs();
-                  strcpy(reply, "OK - admin key cleared");
-                } else {
-                  // Validate that it's a valid hex string of the correct length (PUB_KEY_SIZE * 2 hex chars = PUB_KEY_SIZE bytes)
-                  if (isValidPublicKeyHex(admin_key)) {
-                    StrHelper::strncpy(_prefs->mqtt_admin_public_key, admin_key, sizeof(_prefs->mqtt_admin_public_key));
-                    savePrefs();
-                    strcpy(reply, "OK");
-                  } else {
-                    strcpy(reply, "Error: public key must be 64 hex characters (32 bytes)");
-                  }
-                }
-#endif
-      } else {
-        sprintf(reply, "unknown config: %s", config);
-      }
+      handleSetCmd(sender_timestamp, &command[4], reply);
     } else if (strcmp(command, "erase") == 0) {
       if (0 != sender_timestamp) goto handleCommandDenied;
-
       bool s = _callbacks->formatFileSystem();
       sprintf(reply, "File system erase: %s", s ? "OK" : "Err");
     } else if (strcmp(command, "ver") == 0) {
@@ -2216,6 +1378,8 @@ handleCommandSetRadioSave:
           *(dp-1) = 0; // remove last CR
         }
       }
+    } else if (memcmp(command, "region", 6) == 0) {
+      handleRegionCmd(command, reply);
 #if ENV_INCLUDE_GPS == 1
     } else if (strcmp(command, "gps on") == 0) {
       if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
@@ -2363,4 +1527,551 @@ handleCommandDisabledAndSaveNeedReboot:
     strcpy(reply, "OK: Disabled - Reboot is required.");
     savePrefs();
     return;
+}
+
+void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* reply) {
+  const char* config = &command[4];
+  if (memcmp(config, "dutycycle ", 10) == 0) {
+    float dc = atof(&config[10]);
+    if (dc < 1 || dc > 100) {
+      strcpy(reply, "ERROR: dutycycle must be 1-100");
+    } else {
+      _prefs->airtime_factor = (100.0f / dc) - 1.0f;
+      savePrefs();
+      float actual = 100.0f / (_prefs->airtime_factor + 1.0f);
+      int a_int = (int)actual;
+      int a_frac = (int)((actual - a_int) * 10.0f + 0.5f);
+      sprintf(reply, "OK - %d.%d%%", a_int, a_frac);
+    }
+  } else if (memcmp(config, "af ", 3) == 0) {
+    _prefs->airtime_factor = atof(&config[3]);
+    savePrefs();
+    strcpy(reply, "OK");
+  } else if (memcmp(config, "int.thresh ", 11) == 0) {
+    _prefs->interference_threshold = atoi(&config[11]);
+    savePrefs();
+    strcpy(reply, "OK");
+  } else if (memcmp(config, "agc.reset.interval ", 19) == 0) {
+    _prefs->agc_reset_interval = atoi(&config[19]) / 4;
+    savePrefs();
+    sprintf(reply, "OK - interval rounded to %d", ((uint32_t) _prefs->agc_reset_interval) * 4);
+  } else if (memcmp(config, "multi.acks ", 11) == 0) {
+    _prefs->multi_acks = atoi(&config[11]);
+    savePrefs();
+    strcpy(reply, "OK");
+  } else if (memcmp(config, "allow.read.only ", 16) == 0) {
+    _prefs->allow_read_only = memcmp(&config[16], "on", 2) == 0;
+    savePrefs();
+    strcpy(reply, "OK");
+  } else if (memcmp(config, "flood.advert.interval ", 22) == 0) {
+    int hours = _atoi(&config[22]);
+    if ((hours > 0 && hours < 3) || (hours > 168)) {
+      strcpy(reply, "Error: interval range is 3-168 hours");
+    } else {
+      _prefs->flood_advert_interval = (uint8_t)(hours);
+      _callbacks->updateFloodAdvertTimer();
+      savePrefs();
+      strcpy(reply, "OK");
+    }
+  } else if (memcmp(config, "advert.interval ", 16) == 0) {
+    int mins = _atoi(&config[16]);
+    if ((mins > 0 && mins < MIN_LOCAL_ADVERT_INTERVAL) || (mins > 240)) {
+      sprintf(reply, "Error: interval range is %d-240 minutes", MIN_LOCAL_ADVERT_INTERVAL);
+    } else {
+      _prefs->advert_interval = (uint8_t)(mins / 2);
+      _callbacks->updateAdvertTimer();
+      savePrefs();
+      strcpy(reply, "OK");
+    }
+  } else if (memcmp(config, "guest.password ", 15) == 0) {
+    StrHelper::strncpy(_prefs->guest_password, &config[15], sizeof(_prefs->guest_password));
+    savePrefs();
+    strcpy(reply, "OK");
+  } else if (memcmp(config, "prv.key ", 8) == 0) {
+    uint8_t prv_key[PRV_KEY_SIZE];
+    bool success = mesh::Utils::fromHex(prv_key, PRV_KEY_SIZE, &config[8]);
+    // only allow rekey if key is valid
+    if (success && mesh::LocalIdentity::validatePrivateKey(prv_key)) {
+      mesh::LocalIdentity new_id;
+      new_id.readFrom(prv_key, PRV_KEY_SIZE);
+      _callbacks->saveIdentity(new_id);
+      strcpy(reply, "OK, reboot to apply! New pubkey: ");
+      mesh::Utils::toHex(&reply[33], new_id.pub_key, PUB_KEY_SIZE);
+    } else {
+      strcpy(reply, "Error, bad key");
+    }
+  } else if (memcmp(config, "name ", 5) == 0) {
+    if (isValidName(&config[5])) {
+      StrHelper::strncpy(_prefs->node_name, &config[5], sizeof(_prefs->node_name));
+      savePrefs();
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Error, bad chars");
+    }
+  } else if (memcmp(config, "repeat ", 7) == 0) {
+    _prefs->disable_fwd = memcmp(&config[7], "off", 3) == 0;
+    savePrefs();
+    strcpy(reply, _prefs->disable_fwd ? "OK - repeat is now OFF" : "OK - repeat is now ON");
+#if defined(USE_SX1262) || defined(USE_SX1268)
+  } else if (memcmp(config, "radio.rxgain ", 13) == 0) {
+    _prefs->rx_boosted_gain = memcmp(&config[13], "on", 2) == 0;
+    strcpy(reply, "OK");
+    savePrefs();
+    _callbacks->setRxBoostedGain(_prefs->rx_boosted_gain);
+#endif
+  } else if (memcmp(config, "radio ", 6) == 0) {
+    strcpy(tmp, &config[6]);
+    const char *parts[4];
+    int num = mesh::Utils::parseTextParts(tmp, parts, 4);
+    float freq  = num > 0 ? strtof(parts[0], nullptr) : 0.0f;
+    float bw    = num > 1 ? strtof(parts[1], nullptr) : 0.0f;
+    uint8_t sf  = num > 2 ? atoi(parts[2]) : 0;
+    uint8_t cr  = num > 3 ? atoi(parts[3]) : 0;
+    if (freq >= 150.0f && freq <= 2500.0f && sf >= 5 && sf <= 12 && cr >= 5 && cr <= 8 && bw >= 7.0f && bw <= 500.0f) {
+      _prefs->sf = sf;
+      _prefs->cr = cr;
+      _prefs->freq = freq;
+      _prefs->bw = bw;
+      _callbacks->savePrefs();
+      strcpy(reply, "OK - reboot to apply");
+    } else {
+      strcpy(reply, "Error, invalid radio params");
+    }
+  } else if (memcmp(config, "lat ", 4) == 0) {
+    _prefs->node_lat = atof(&config[4]);
+    savePrefs();
+    strcpy(reply, "OK");
+  } else if (memcmp(config, "lon ", 4) == 0) {
+    _prefs->node_lon = atof(&config[4]);
+    savePrefs();
+    strcpy(reply, "OK");
+  } else if (memcmp(config, "rxdelay ", 8) == 0) {
+    float db = atof(&config[8]);
+    if (db >= 0) {
+      _prefs->rx_delay_base = db;
+      savePrefs();
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Error, cannot be negative");
+    }
+  } else if (memcmp(config, "txdelay ", 8) == 0) {
+    float f = atof(&config[8]);
+    if (f >= 0) {
+      _prefs->tx_delay_factor = f;
+      savePrefs();
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Error, cannot be negative");
+    }
+  } else if (memcmp(config, "flood.max ", 10) == 0) {
+    uint8_t m = atoi(&config[10]);
+    if (m <= 64) {
+      _prefs->flood_max = m;
+      savePrefs();
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Error, max 64");
+    }
+  } else if (memcmp(config, "direct.txdelay ", 15) == 0) {
+    float f = atof(&config[15]);
+    if (f >= 0) {
+      _prefs->direct_tx_delay_factor = f;
+      savePrefs();
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Error, cannot be negative");
+    }
+  } else if (memcmp(config, "owner.info ", 11) == 0) {
+    config += 11;
+    char *dp = _prefs->owner_info;
+    while (*config && dp - _prefs->owner_info < sizeof(_prefs->owner_info)-1) {
+      *dp++ = (*config == '|') ? '\n' : *config;    // translate '|' to newline chars
+      config++;
+    }
+    *dp = 0;
+    savePrefs();
+    strcpy(reply, "OK");
+  } else if (memcmp(config, "path.hash.mode ", 15) == 0) {
+    config += 15;
+    uint8_t mode = atoi(config);
+    if (mode < 3) {
+      _prefs->path_hash_mode = mode;
+      savePrefs();
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Error, must be 0,1, or 2");
+    }
+  } else if (memcmp(config, "loop.detect ", 12) == 0) {
+    config += 12;
+    uint8_t mode;
+    if (memcmp(config, "off", 3) == 0) {
+      mode = LOOP_DETECT_OFF;
+    } else if (memcmp(config, "minimal", 7) == 0) {
+      mode = LOOP_DETECT_MINIMAL;
+    } else if (memcmp(config, "moderate", 8) == 0) {
+      mode = LOOP_DETECT_MODERATE;
+    } else if (memcmp(config, "strict", 6) == 0) {
+      mode = LOOP_DETECT_STRICT;
+    } else {
+      mode = 0xFF;
+      strcpy(reply, "Error, must be: off, minimal, moderate, or strict");
+    }
+    if (mode != 0xFF) {
+      _prefs->loop_detect = mode;
+      savePrefs();
+      strcpy(reply, "OK");
+    }
+  } else if (memcmp(config, "tx ", 3) == 0) {
+    _prefs->tx_power_dbm = atoi(&config[3]);
+    savePrefs();
+    _callbacks->setTxPower(_prefs->tx_power_dbm);
+    strcpy(reply, "OK");
+  } else if (sender_timestamp == 0 && memcmp(config, "freq ", 5) == 0) {
+    _prefs->freq = atof(&config[5]);
+    savePrefs();
+    strcpy(reply, "OK - reboot to apply");
+#ifdef WITH_BRIDGE
+  } else if (memcmp(config, "bridge.enabled ", 15) == 0) {
+    _prefs->bridge_enabled = memcmp(&config[15], "on", 2) == 0;
+    _callbacks->setBridgeState(_prefs->bridge_enabled);
+    savePrefs();
+    strcpy(reply, "OK");
+  } else if (memcmp(config, "bridge.delay ", 13) == 0) {
+    int delay = _atoi(&config[13]);
+    if (delay >= 0 && delay <= 10000) {
+      _prefs->bridge_delay = (uint16_t)delay;
+      savePrefs();
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Error: delay must be between 0-10000 ms");
+    }
+  } else if (memcmp(config, "bridge.source ", 14) == 0) {
+    _prefs->bridge_pkt_src = memcmp(&config[14], "rx", 2) == 0;
+    savePrefs();
+    strcpy(reply, "OK");
+#endif
+#ifdef WITH_RS232_BRIDGE
+  } else if (memcmp(config, "bridge.baud ", 12) == 0) {
+    uint32_t baud = atoi(&config[12]);
+    if (baud >= 9600 && baud <= BRIDGE_MAX_BAUD) {
+      _prefs->bridge_baud = (uint32_t)baud;
+      _callbacks->restartBridge();
+      savePrefs();
+      strcpy(reply, "OK");
+    } else {
+      sprintf(reply, "Error: baud rate must be between 9600-%d",BRIDGE_MAX_BAUD);
+    }
+#endif
+#ifdef WITH_ESPNOW_BRIDGE
+  } else if (memcmp(config, "bridge.channel ", 15) == 0) {
+    int ch = atoi(&config[15]);
+    if (ch > 0 && ch < 15) {
+      _prefs->bridge_channel = (uint8_t)ch;
+      _callbacks->restartBridge();
+      savePrefs();
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Error: channel must be between 1-14");
+    }
+  } else if (memcmp(config, "bridge.secret ", 14) == 0) {
+    StrHelper::strncpy(_prefs->bridge_secret, &config[14], sizeof(_prefs->bridge_secret));
+    _callbacks->restartBridge();
+    savePrefs();
+    strcpy(reply, "OK");
+#endif
+  } else if (memcmp(config, "adc.multiplier ", 15) == 0) {
+    _prefs->adc_multiplier = atof(&config[15]);
+    if (_board->setAdcMultiplier(_prefs->adc_multiplier)) {
+      savePrefs();
+      if (_prefs->adc_multiplier == 0.0f) {
+        strcpy(reply, "OK - using default board multiplier");
+      } else {
+        sprintf(reply, "OK - multiplier set to %.3f", _prefs->adc_multiplier);
+      }
+    } else {
+      _prefs->adc_multiplier = 0.0f;
+      strcpy(reply, "Error: unsupported by this board");
+    };
+  } else {
+    sprintf(reply, "unknown config: %s", config);
+  }
+}
+
+void CommonCLI::handleGetCmd(uint32_t sender_timestamp, char* command, char* reply) {
+  const char* config = &command[4];
+  if (memcmp(config, "dutycycle", 9) == 0) {
+    float dc = 100.0f / (_prefs->airtime_factor + 1.0f);
+    int dc_int = (int)dc;
+    int dc_frac = (int)((dc - dc_int) * 10.0f + 0.5f);
+    sprintf(reply, "> %d.%d%%", dc_int, dc_frac);
+  } else if (memcmp(config, "af", 2) == 0) {
+    sprintf(reply, "> %s", StrHelper::ftoa(_prefs->airtime_factor));
+  } else if (memcmp(config, "int.thresh", 10) == 0) {
+    sprintf(reply, "> %d", (uint32_t) _prefs->interference_threshold);
+  } else if (memcmp(config, "agc.reset.interval", 18) == 0) {
+    sprintf(reply, "> %d", ((uint32_t) _prefs->agc_reset_interval) * 4);
+  } else if (memcmp(config, "multi.acks", 10) == 0) {
+    sprintf(reply, "> %d", (uint32_t) _prefs->multi_acks);
+  } else if (memcmp(config, "allow.read.only", 15) == 0) {
+    sprintf(reply, "> %s", _prefs->allow_read_only ? "on" : "off");
+  } else if (memcmp(config, "flood.advert.interval", 21) == 0) {
+    sprintf(reply, "> %d", ((uint32_t) _prefs->flood_advert_interval));
+  } else if (memcmp(config, "advert.interval", 15) == 0) {
+    sprintf(reply, "> %d", ((uint32_t) _prefs->advert_interval) * 2);
+  } else if (memcmp(config, "guest.password", 14) == 0) {
+    sprintf(reply, "> %s", _prefs->guest_password);
+  } else if (sender_timestamp == 0 && memcmp(config, "prv.key", 7) == 0) {  // from serial command line only
+    uint8_t prv_key[PRV_KEY_SIZE];
+    int len = _callbacks->getSelfId().writeTo(prv_key, PRV_KEY_SIZE);
+    mesh::Utils::toHex(tmp, prv_key, len);
+    sprintf(reply, "> %s", tmp);
+  } else if (memcmp(config, "name", 4) == 0) {
+    sprintf(reply, "> %s", _prefs->node_name);
+  } else if (memcmp(config, "repeat", 6) == 0) {
+    sprintf(reply, "> %s", _prefs->disable_fwd ? "off" : "on");
+  } else if (memcmp(config, "lat", 3) == 0) {
+    sprintf(reply, "> %s", StrHelper::ftoa(_prefs->node_lat));
+  } else if (memcmp(config, "lon", 3) == 0) {
+    sprintf(reply, "> %s", StrHelper::ftoa(_prefs->node_lon));
+#if defined(USE_SX1262) || defined(USE_SX1268)
+  } else if (memcmp(config, "radio.rxgain", 12) == 0) {
+    sprintf(reply, "> %s", _prefs->rx_boosted_gain ? "on" : "off");
+#endif
+  } else if (memcmp(config, "radio", 5) == 0) {
+    char freq[16], bw[16];
+    strcpy(freq, StrHelper::ftoa(_prefs->freq));
+    strcpy(bw, StrHelper::ftoa3(_prefs->bw));
+    sprintf(reply, "> %s,%s,%d,%d", freq, bw, (uint32_t)_prefs->sf, (uint32_t)_prefs->cr);
+  } else if (memcmp(config, "rxdelay", 7) == 0) {
+    sprintf(reply, "> %s", StrHelper::ftoa(_prefs->rx_delay_base));
+  } else if (memcmp(config, "txdelay", 7) == 0) {
+    sprintf(reply, "> %s", StrHelper::ftoa(_prefs->tx_delay_factor));
+  } else if (memcmp(config, "flood.max", 9) == 0) {
+    sprintf(reply, "> %d", (uint32_t)_prefs->flood_max);
+  } else if (memcmp(config, "direct.txdelay", 14) == 0) {
+    sprintf(reply, "> %s", StrHelper::ftoa(_prefs->direct_tx_delay_factor));
+  } else if (memcmp(config, "owner.info", 10) == 0) {
+    *reply++ = '>';
+    *reply++ = ' ';
+    const char* sp = _prefs->owner_info;
+    while (*sp) {
+      *reply++ = (*sp == '\n') ? '|' : *sp;    // translate newline back to orig '|'
+      sp++;
+    }
+    *reply = 0;  // set null terminator
+  } else if (memcmp(config, "path.hash.mode", 14) == 0) {
+    sprintf(reply, "> %d", (uint32_t)_prefs->path_hash_mode);
+  } else if (memcmp(config, "loop.detect", 11) == 0) {
+    if (_prefs->loop_detect == LOOP_DETECT_OFF) {
+      strcpy(reply, "> off");
+    } else if (_prefs->loop_detect == LOOP_DETECT_MINIMAL) {
+      strcpy(reply, "> minimal");
+    } else if (_prefs->loop_detect == LOOP_DETECT_MODERATE) {
+      strcpy(reply, "> moderate");
+    } else {
+      strcpy(reply, "> strict");
+    }
+  } else if (memcmp(config, "tx", 2) == 0 && (config[2] == 0 || config[2] == ' ')) {
+    sprintf(reply, "> %d", (int32_t) _prefs->tx_power_dbm);
+  } else if (memcmp(config, "freq", 4) == 0) {
+    sprintf(reply, "> %s", StrHelper::ftoa(_prefs->freq));
+  } else if (memcmp(config, "public.key", 10) == 0) {
+    strcpy(reply, "> ");
+    mesh::Utils::toHex(&reply[2], _callbacks->getSelfId().pub_key, PUB_KEY_SIZE);
+  } else if (memcmp(config, "role", 4) == 0) {
+    sprintf(reply, "> %s", _callbacks->getRole());
+  } else if (memcmp(config, "bridge.type", 11) == 0) {
+    sprintf(reply, "> %s",
+#ifdef WITH_RS232_BRIDGE
+            "rs232"
+#elif WITH_ESPNOW_BRIDGE
+            "espnow"
+#else
+            "none"
+#endif
+    );
+#ifdef WITH_BRIDGE
+  } else if (memcmp(config, "bridge.enabled", 14) == 0) {
+    sprintf(reply, "> %s", _prefs->bridge_enabled ? "on" : "off");
+  } else if (memcmp(config, "bridge.delay", 12) == 0) {
+    sprintf(reply, "> %d", (uint32_t)_prefs->bridge_delay);
+  } else if (memcmp(config, "bridge.source", 13) == 0) {
+    sprintf(reply, "> %s", _prefs->bridge_pkt_src ? "logRx" : "logTx");
+#endif
+#ifdef WITH_RS232_BRIDGE
+  } else if (memcmp(config, "bridge.baud", 11) == 0) {
+    sprintf(reply, "> %d", (uint32_t)_prefs->bridge_baud);
+#endif
+#ifdef WITH_ESPNOW_BRIDGE
+  } else if (memcmp(config, "bridge.channel", 14) == 0) {
+    sprintf(reply, "> %d", (uint32_t)_prefs->bridge_channel);
+  } else if (memcmp(config, "bridge.secret", 13) == 0) {
+    sprintf(reply, "> %s", _prefs->bridge_secret);
+#endif
+  } else if (memcmp(config, "bootloader.ver", 14) == 0) {
+  #ifdef NRF52_PLATFORM
+      char ver[32];
+      if (_board->getBootloaderVersion(ver, sizeof(ver))) {
+          sprintf(reply, "> %s", ver);
+      } else {
+          strcpy(reply, "> unknown");
+      }
+  #else
+      strcpy(reply, "ERROR: unsupported");
+  #endif
+  } else if (memcmp(config, "adc.multiplier", 14) == 0) {
+    float adc_mult = _board->getAdcMultiplier();
+    if (adc_mult == 0.0f) {
+      strcpy(reply, "Error: unsupported by this board");
+    } else {
+      sprintf(reply, "> %.3f", adc_mult);
+    }
+  // Power management commands
+  } else if (memcmp(config, "pwrmgt.support", 14) == 0) {
+#ifdef NRF52_POWER_MANAGEMENT
+    strcpy(reply, "> supported");
+#else
+    strcpy(reply, "> unsupported");
+#endif
+  } else if (memcmp(config, "pwrmgt.source", 13) == 0) {
+#ifdef NRF52_POWER_MANAGEMENT
+    strcpy(reply, _board->isExternalPowered() ? "> external" : "> battery");
+#else
+    strcpy(reply, "ERROR: Power management not supported");
+#endif
+  } else if (memcmp(config, "pwrmgt.bootreason", 17) == 0) {
+#ifdef NRF52_POWER_MANAGEMENT
+    sprintf(reply, "> Reset: %s; Shutdown: %s",
+      _board->getResetReasonString(_board->getResetReason()),
+      _board->getShutdownReasonString(_board->getShutdownReason()));
+#else
+    strcpy(reply, "ERROR: Power management not supported");
+#endif
+  } else if (memcmp(config, "pwrmgt.bootmv", 13) == 0) {
+#ifdef NRF52_POWER_MANAGEMENT
+    sprintf(reply, "> %u mV", _board->getBootVoltage());
+#else
+    strcpy(reply, "ERROR: Power management not supported");
+#endif
+  } else {
+    sprintf(reply, "??: %s", config);
+  }
+}
+
+void CommonCLI::handleRegionCmd(char* command, char* reply) {
+  reply[0] = 0;
+
+  const char* parts[4];
+  int n = mesh::Utils::parseTextParts(command, parts, 4, ' ');
+  if (n == 1) {
+    _region_map->exportTo(reply, 160);
+  } else if (n >= 2 && strcmp(parts[1], "load") == 0) {
+    _callbacks->startRegionsLoad();
+  } else if (n >= 2 && strcmp(parts[1], "save") == 0) {
+    _prefs->discovery_mod_timestamp = getRTCClock()->getCurrentTime();   // this node is now 'modified' (for discovery info)
+    savePrefs();
+    bool success = _callbacks->saveRegions();
+    strcpy(reply, success ? "OK" : "Err - save failed");
+  } else if (n >= 3 && strcmp(parts[1], "allowf") == 0) {
+    auto region = _region_map->findByNamePrefix(parts[2]);
+    if (region) {
+      region->flags &= ~REGION_DENY_FLOOD;
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Err - unknown region");
+    }
+  } else if (n >= 3 && strcmp(parts[1], "denyf") == 0) {
+    auto region = _region_map->findByNamePrefix(parts[2]);
+    if (region) {
+      region->flags |= REGION_DENY_FLOOD;
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Err - unknown region");
+    }
+  } else if (n >= 3 && strcmp(parts[1], "get") == 0) {
+    auto region = _region_map->findByNamePrefix(parts[2]);
+    if (region) {
+      auto parent = _region_map->findById(region->parent);
+      if (parent && parent->id != 0) {
+        sprintf(reply, " %s (%s) %s", region->name, parent->name, (region->flags & REGION_DENY_FLOOD) ? "" : "F");
+      } else {
+        sprintf(reply, " %s %s", region->name, (region->flags & REGION_DENY_FLOOD) ? "" : "F");
+      }
+    } else {
+      strcpy(reply, "Err - unknown region");
+    }
+  } else if (n >= 3 && strcmp(parts[1], "home") == 0) {
+    auto home = _region_map->findByNamePrefix(parts[2]);
+    if (home) {
+      _region_map->setHomeRegion(home);
+      sprintf(reply, " home is now %s", home->name);
+    } else {
+      strcpy(reply, "Err - unknown region");
+    }
+  } else if (n == 2 && strcmp(parts[1], "home") == 0) {
+    auto home = _region_map->getHomeRegion();
+    sprintf(reply, " home is %s", home ? home->name : "*");
+  } else if (n >= 3 && strcmp(parts[1], "default") == 0) {
+    if (strcmp(parts[2], "<null>") == 0) {
+      _region_map->setDefaultRegion(NULL);
+      _callbacks->onDefaultRegionChanged(NULL);
+      sprintf(reply, " default scope is now <null>");
+    } else {
+      auto def = _region_map->findByNamePrefix(parts[2]);
+      if (def) {
+        _region_map->setDefaultRegion(def);
+        _callbacks->onDefaultRegionChanged(def);
+        sprintf(reply, " default scope is now %s", def->name);
+      } else {
+        strcpy(reply, "Err - unknown region");
+      }
+    }
+  } else if (n == 2 && strcmp(parts[1], "default") == 0) {
+    auto def = _region_map->getDefaultRegion();
+    sprintf(reply, " default scope is %s", def ? def->name : "<null>");
+  } else if (n >= 3 && strcmp(parts[1], "put") == 0) {
+    auto parent = n >= 4 ? _region_map->findByNamePrefix(parts[3]) : &(_region_map->getWildcard());
+    if (parent == NULL) {
+      strcpy(reply, "Err - unknown parent");
+    } else {
+      auto region = _region_map->putRegion(parts[2], parent->id);
+      if (region == NULL) {
+        strcpy(reply, "Err - unable to put");
+      } else {
+        strcpy(reply, "OK");
+      }
+    }
+  } else if (n >= 3 && strcmp(parts[1], "remove") == 0) {
+    auto region = _region_map->findByName(parts[2]);
+    if (region) {
+      if (_region_map->removeRegion(*region)) {
+        strcpy(reply, "OK");
+      } else {
+        strcpy(reply, "Err - not empty");
+      }
+    } else {
+      strcpy(reply, "Err - not found");
+    }
+  } else if (n >= 3 && strcmp(parts[1], "list") == 0) {
+    uint8_t mask = 0;
+    bool invert = false;
+    
+    if (strcmp(parts[2], "allowed") == 0) {
+      mask = REGION_DENY_FLOOD;
+      invert = false;  // list regions that DON'T have DENY flag
+    } else if (strcmp(parts[2], "denied") == 0) {
+      mask = REGION_DENY_FLOOD;
+      invert = true;   // list regions that DO have DENY flag
+    } else {
+      strcpy(reply, "Err - use 'allowed' or 'denied'");
+      return;
+    }
+    
+    int len = _region_map->exportNamesTo(reply, 160, mask, invert);
+    if (len == 0) {
+      strcpy(reply, "-none-");
+    }
+  } else {
+    strcpy(reply, "Err - ??");
+  }
 }
