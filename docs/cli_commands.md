@@ -802,6 +802,16 @@ itself to disable.
 
 ---
 
+#### View or change the default scope region for this node
+**Usage:** 
+- `region default`
+- `region default {name|<null>}`
+
+**Parameters:**
+- `name`: Region name,  or <null> to reset/clear
+
+---
+
 #### Create a new region
 **Usage:** 
 - `region put <name> [parent_name]`
