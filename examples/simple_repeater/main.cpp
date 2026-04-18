@@ -111,15 +111,19 @@ void setup() {
   }
 #endif
 
+#ifdef WITH_MQTT_BRIDGE
   // start telent server //
   if (the_mesh.getNodePrefs()->wifi_telnet_enabled) {
     MESH_DEBUG_PRINTLN("starting telnet server");
     g_server_telnet.begin();
   }
+#endif
 }
 
 void loop() {
+#ifdef WITH_MQTT_BRIDGE
   loop_telnet_server(the_mesh);
+#endif
   loop_serial_console(the_mesh);
 
 #if defined(PIN_USER_BTN) && defined(_SEEED_SENSECAP_SOLAR_H_)

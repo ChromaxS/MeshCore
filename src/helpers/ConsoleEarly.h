@@ -13,11 +13,10 @@ extern WiFiClient *g_client_telnet;
 
 #else
 
-
 #define CONSOLE_WRITE(str) console_write_both(Serial, nullptr, str);
 #define CONSOLE_WRITE_F(F, ...) console_write_both_formated(Serial, nullptr, F, ##__VA_ARGS__);
 
 #endif
 
-extern void console_write_both(USBCDC &serial, Stream *client, const char *out);
-extern void console_write_both_formated(USBCDC &serial, Stream *client, const char *out, ...);
+extern void console_write_both(Stream &serial, Stream *client, const char *out);
+extern void console_write_both_formated(Stream &serial, Stream *client, const char *out, ...);

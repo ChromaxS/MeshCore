@@ -46,8 +46,9 @@ enum SERIAL_COMMAND_STATE {
 static SERIAL_COMMAND_STATE gl_serial_command_state = SCS_NORMAL;
 static char gl_serial_command_code[2];
 
-void console_write_both(USBCDC &serial, Stream *client, const char *out) {
+void console_write_both(Stream &serial, Stream *client, const char *out) {
   if (serial.availableForWrite()) serial.print(out);
+#ifdef ESP_PLATFORM
   // check for both no client AND that it's authenticated //
   if (client != nullptr && TCS_NORMAL == gl_client_telnet_state) {
     static char out_tmp[100];
@@ -89,9 +90,10 @@ console_write_both_write_tmp_out:
       client->print(out_tmp);
     }
   }
+#endif
 }
 
-void console_write_both_formated(USBCDC &serial, Stream *client, const char *out, ...) {
+void console_write_both_formated(Stream &serial, Stream *client, const char *out, ...) {
     va_list args;
     va_start(args, out);
 
@@ -142,7 +144,7 @@ static bool telnet_handle_iac(WiFiClient *client, const char c) {
 
 #endif
 
-static bool loop_serial_console_internal(mesh::Mesh &the_mesh, uint32_t client_now, USBCDC &serial, Stream *client) {
+static bool loop_serial_console_internal(mesh::Mesh &the_mesh, uint32_t client_now, Stream &serial, Stream *client) {
   // serial processing //
   char c;
   if (!serial.available()) {
@@ -274,16 +276,19 @@ loop_serial_console_display_selected:
       // handle the command //
       char reply[160];
       *reply = '\0';
-      if (client_now > 0) {
-        // update the client's last only when a command was issued //
-        gl_client_telnet_last = client_now;
+#ifdef ESP_PLATFORM
+      if (nullptr != client) {
+        if (strcmp(g_serial_command, "exit") == 0) {
+          // disconnect the client //
+          disconnect_client = true;
+          goto loop_serial_console_reset;
+        } else if (client_now > 0) {
+            // update the client's last only when a command was issued //
+            gl_client_telnet_last = client_now;
+        }
       }
-      if (nullptr != client && strcmp(g_serial_command, "exit") == 0) {
-        // disconnect the client //
-        disconnect_client = true;
-      } else {
-        the_mesh.handleCommand(0, g_serial_command, reply);  // NOTE: there is no sender_timestamp via serial!
-      }
+#endif
+      the_mesh.handleCommand(0, g_serial_command, reply);  // NOTE: there is no sender_timestamp via serial!
       if (*reply != '\0') {
         console_write_both(serial, client, "  -> ");
         console_write_both(serial, client, reply);
@@ -342,7 +347,7 @@ bool loop_serial_console(mesh::Mesh &the_mesh) {
 
 #else
 
-return loop_serial_console(mesh::Mesh &the_mesh) {
+bool loop_serial_console(mesh::Mesh &the_mesh) {
   return loop_serial_console_internal(the_mesh, 0, Serial, nullptr);
 }
 

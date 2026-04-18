@@ -1,3 +1,5 @@
+#ifdef WITH_MQTT_BRIDGE
+
 #include "JWTHelper.h"
 #include <ArduinoJson.h>
 #include <SHA256.h>
@@ -631,3 +633,4 @@ bool JWTHelper::verifyToken(
   return (verify_result == 1);
 }
 
+#endif

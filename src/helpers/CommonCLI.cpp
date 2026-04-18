@@ -4,6 +4,7 @@
 #include "TxtDataHelpers.h"
 #include "AdvertDataHelpers.h"
 #include <RTClib.h>
+#include <malloc.h>
 #ifdef ESP_PLATFORM
 #include <WiFi.h>
 #include <esp_wifi.h>
@@ -43,6 +44,26 @@ static uint32_t _atoi(const char* sp) {
   }
   return n;
 }
+
+uint32_t getAllocatedHeap() {
+  struct mallinfo mi = mallinfo();
+  return (uint32_t)mi.uordblks;
+}
+
+#ifdef ESP_PLATFORM
+
+uint32_t getFreeHeap() {
+  return ESP.getFreeHeap();
+}
+
+#else
+
+uint32_t getFreeHeap() {
+  struct mallinfo mi = mallinfo();
+  return (uint32_t)mi.fordblks;
+}
+
+#endif
 
 // Validate public key hex string (PUB_KEY_SIZE * 2 hex characters = PUB_KEY_SIZE bytes)
 static bool isValidPublicKeyHex(const char* key_hex) {
@@ -110,7 +131,9 @@ void CommonCLI::loadPrefs(FILESYSTEM* fs) {
     MESH_DEBUG_PRINTLN("No configuration file... setting defaults.");
     // set default settings //
     setPrefsDefaults();
+#ifdef WITH_MQTT_BRIDGE
     setMQTTPrefsDefaults();
+#endif
     // set default bridge settings for fresh installs //
     _prefs->bridge_pkt_src = 1;  // Default to RX (logRx) for new installs
     save_config = true;
@@ -207,7 +230,9 @@ void CommonCLI::loadPrefsJson(FILESYSTEM *fs) {
     // Initialize with defaults first
     memset(_prefs, 0, sizeof(_prefs));
     setPrefsDefaults();
+#ifdef WITH_MQTT_BRIDGE
     setMQTTPrefsDefaults();
+#endif
 
     bool json_existed = fs->exists("/prefs.json");
     if (!json_existed) {
@@ -1067,9 +1092,9 @@ handleCommandHelpSections:
         strcpy(reply, "ERR: clock cannot go backwards");
       }
     } else if (strcmp(command, "memory") == 0) {
-      sprintf(reply, "Free: %d, Min: %d, Max: %d, Queue: %d", 
-              ESP.getFreeHeap(), ESP.getMinFreeHeap(), ESP.getMaxAllocHeap(), 
-              _callbacks->getQueueSize());
+      sprintf(reply, "Used: %d, Free: %d, Queue: %d",
+        getAllocatedHeap(), getFreeHeap(),
+        _callbacks->getQueueSize());
     } else if (strcmp(command, "start ota") == 0) {
       if (!allowProtectedCommand(sender_timestamp)) goto handleCommandDenied;
       if (!_board->startOTAUpdate(_prefs->node_name, reply)) {
