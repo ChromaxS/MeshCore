@@ -34,11 +34,11 @@
 #define PERM_RECV_ALERTS_HI    (1 << 7)   // high priority alerts
 
 #ifndef FIRMWARE_BUILD_DATE
-  #define FIRMWARE_BUILD_DATE   "18 Apr 2026"
+  #define FIRMWARE_BUILD_DATE   "19 Apr 2026"
 #endif
 
 #ifndef FIRMWARE_VERSION
-  #define FIRMWARE_VERSION   "v1.14.1@chro-5"
+  #define FIRMWARE_VERSION   "v1.15.0@chro-1"
 #endif
 
 #define FIRMWARE_ROLE "sensor"
