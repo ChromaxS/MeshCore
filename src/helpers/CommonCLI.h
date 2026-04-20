@@ -208,6 +208,16 @@ public:
   };
 };
 
+enum CommonCLICmdRetrun {
+  CCCR_OK = 0, // strcpy(reply, "OK");
+  CCCR_OK_DISABLED_AND_SAVE = 1, // strcpy(reply, "OK - disabled");
+  CCCR_OK_DISABLED_AND_SAVE_AND_REBOOT = 2, // strcpy(reply, "OK - disabled and reboot");
+  CCCR_OK_SAVE = 3,
+  CCCR_OK_REBOOT_REQUIRED = 4, // strcpy(reply, "OK - reboot to apply");
+  CCCR_DENIED = 5,
+  CCCR_ERROR = 6,
+};
+
 class CommonCLI {
   mesh::RTCClock* _rtc;
   NodePrefs* _prefs;
@@ -230,9 +240,12 @@ class CommonCLI {
 #endif
     void sanitizePrefs();
 
-  void handleRegionCmd(char* command, char* reply);
-  void handleGetCmd(uint32_t sender_timestamp, char* command, char* reply);
-  void handleSetCmd(uint32_t sender_timestamp, char* command, char* reply);
+  void handleRegionCmd(const char* command, char* reply);
+
+  enum CommonCLICmdRetrun handleClearCmd(const uint32_t sender_timestamp, const char* config, char* reply);
+  enum CommonCLICmdRetrun handleDisableCmd(const uint32_t sender_timestamp, const char* config, char* reply);
+  enum CommonCLICmdRetrun handleGetCmd(const uint32_t sender_timestamp, const char* config, char* reply);
+  enum CommonCLICmdRetrun handleSetCmd(const uint32_t sender_timestamp, const char* config, char* reply);
 
 public:
   CommonCLI(mesh::MainBoard& board, mesh::RTCClock& rtc, SensorManager& sensors, RegionMap& region_map, ClientACL& acl, NodePrefs* prefs, CommonCLICallbacks* callbacks)
